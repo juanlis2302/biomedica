@@ -362,9 +362,9 @@
                         <td>${eq.serie}</td>
                         <td>${sedesMap[eq.sede_id] || 'N/A'} ${eq.adquisicion === 'Devuelto' ? '<span style="color:red; font-weight:bold;">(Devuelto)</span>' : ''}</td>
                         <td>
-                            <button onclick="location.href='hoja_vida.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#17a2b8;">Hoja Vida</button>
-                            <button onclick="location.href='traslados.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#ffc107; color:black;">Traslado</button>
-                            <button onclick="location.href='mantenimientos.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#28a745;">Reporte</button>
+                            <button onclick="location.href='/static/hoja_vida.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#17a2b8;">Hoja Vida</button>
+                            <button onclick="location.href='/static/traslados.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#ffc107; color:black;">Traslado</button>
+                            <button onclick="location.href='/static/mantenimientos.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#28a745;">Reporte</button>
                             ${eq.adquisicion === 'Alquilado' ? `<button onclick="devolverEquipo(${eq.id})" class="btn-accion" style="background:#6c757d;">Devolver</button>` : ''}
                         </td>
                     </tr>
@@ -505,7 +505,7 @@
                 const usuario = JSON.parse(sesion);
                 
                 if (usuario.rol === "super_admin") {
-                    window.location.href = "empresas.html";
+                    window.location.href = "/static/empresas.html";
                 } else {
                     document.getElementById("menuNavegacion").style.display = "flex";
                     mostrarVista('dashboard'); 
