@@ -431,3 +431,35 @@ def subir_documento_equipo(equipo_id: int, archivo: UploadFile = File(...), db: 
         shutil.copyfileobj(archivo.file, buffer)
         
     return {"mensaje": "Documento subido con éxito"}
+# --- DOCUMENTOS Y FOTOS DE EQUIPOS ---
+@app.get("/documentos/equipo/{equipo_id}", tags=["Documentos"])
+def listar_documentos_equipo(equipo_id: int, db: Session = Depends(get_db)):
+    return []
+
+@app.post("/equipos/{equipo_id}/foto/", tags=["Inventario"])
+def actualizar_foto_equipo(equipo_id: int, foto: UploadFile = File(...), db: Session = Depends(get_db)):
+    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    
+    os.makedirs("documentos/fotos", exist_ok=True)
+    ruta_archivo = f"documentos/fotos/{equipo_id}_{foto.filename}"
+    with open(ruta_archivo, "wb") as buffer:
+        shutil.copyfileobj(foto.file, buffer)
+        
+    equipo.imagen_url = ruta_archivo
+    db.commit()
+    return {"mensaje": "Foto actualizada", "url": ruta_archivo}
+
+@app.post("/equipos/{equipo_id}/documento/", tags=["Documentos"])
+def subir_documento_equipo(equipo_id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+        
+    os.makedirs("documentos/archivos", exist_ok=True)
+    ruta_archivo = f"documentos/archivos/{equipo_id}_{archivo.filename}"
+    with open(ruta_archivo, "wb") as buffer:
+        shutil.copyfileobj(archivo.file, buffer)
+        
+    return {"mensaje": "Documento subido con éxito"}
