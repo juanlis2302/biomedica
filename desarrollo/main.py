@@ -53,6 +53,9 @@ def leer_index():
 def verificar_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8')[:72], hashed_password.encode('utf-8'))
 
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
 # --- LOGIN ---
 @app.post("/login", tags=["Usuarios"])
 def iniciar_sesion(datos: schemas.LoginRequest, db: Session = Depends(get_db)):
@@ -83,6 +86,15 @@ def crear_empresa(datos: schemas.EmpresaCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nueva_empresa)
     return {"mensaje": "Empresa creada con éxito", "id": nueva_empresa.id}
+
+@app.patch("/empresas/{empresa_id}/estado/", tags=["Empresas"])
+def cambiar_estado_empresa(empresa_id: int, db: Session = Depends(get_db)):
+    empresa = db.query(models.Empresa).filter(models.Empresa.id == empresa_id).first()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    empresa.activo = not empresa.activo
+    db.commit()
+    return {"mensaje": "Estado de empresa actualizado", "activo": empresa.activo}
 
 # --- SEDES ---
 @app.get("/sedes/", tags=["Sedes"])
@@ -121,6 +133,42 @@ def crear_equipo(datos: schemas.EquipoCreate, db: Session = Depends(get_db)):
     db.add(nuevo_equipo)
     db.commit()
     return {"mensaje": "Equipo creado"}
+
+# --- GESTIÓN DE USUARIOS ---
+@app.get("/usuarios/", tags=["Usuarios"])
+def listar_usuarios(empresa_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Usuario)
+    if empresa_id:
+        query = query.filter(models.Usuario.empresa_id == empresa_id)
+    return query.all()
+
+@app.post("/usuarios/", tags=["Usuarios"])
+def crear_usuario(datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
+    existe = db.query(models.Usuario).filter(models.Usuario.email == datos.email).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="El correo ya está registrado.")
+    
+    nuevo_usuario = models.Usuario(
+        nombre_completo=datos.nombre_completo,
+        email=datos.email,
+        password_hash=hash_password(datos.password),
+        rol=datos.rol,
+        empresa_id=datos.empresa_id,
+        activo=True
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+    db.refresh(nuevo_usuario)
+    return {"mensaje": "Usuario creado con éxito", "id": nuevo_usuario.id}
+
+@app.patch("/usuarios/{usuario_id}/estado", tags=["Usuarios"])
+def cambiar_estado_usuario(usuario_id: int, db: Session = Depends(get_db)):
+    usuario = db.query(models.Usuario).filter(models.Usuario.id == usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    usuario.activo = not usuario.activo
+    db.commit()
+    return {"mensaje": "Estado actualizado", "activo": usuario.activo}
 
 # --- DASHBOARD ---
 @app.get("/dashboard/metricas/", tags=["Dashboard"])
