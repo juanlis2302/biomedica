@@ -1,13 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import shutil, os
 from datetime import datetime
 from collections import defaultdict
 import bcrypt
+import pandas as pd
+import io
 
 # Importaciones de tu estructura
 import models
@@ -135,8 +137,34 @@ def exportar_inventario(empresa_id: Optional[int] = None, sede_id: Optional[int]
         query = query.filter(models.Equipo.sede_id == sede_id)
     elif empresa_id:
         query = query.join(models.Sede).filter(models.Sede.empresa_id == empresa_id)
+    
     equipos = query.all()
-    return {"total_equipos": len(equipos), "mensaje": "Inventario listo para exportar"}
+    
+    data = []
+    for eq in equipos:
+        data.append({
+            "ID": eq.id,
+            "Nombre Equipo": eq.nombre_equipo,
+            "Marca": eq.marca,
+            "Modelo": eq.modelo,
+            "Serie": eq.serie,
+            "Activo Fijo": eq.activo_fijo,
+            "Ubicación Interna": eq.ubicacion_interna,
+            "Riesgo": eq.riesgo,
+            "Adquisición": eq.adquisicion,
+            "Costo / Canon": eq.costo_canon,
+            "Periodicidad Mtto": eq.periodicidad_mtto
+        })
+    
+    df = pd.DataFrame(data)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventario')
+    output.seek(0)
+    
+    headers = {'Content-Disposition': 'attachment; filename="inventario_biomedico.xlsx"'}
+    return StreamingResponse(output, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers=headers)
 
 @app.get("/equipos/", tags=["Inventario"])
 def listar_equipos(empresa_id: Optional[int] = None, sede_id: Optional[int] = None, db: Session = Depends(get_db)):

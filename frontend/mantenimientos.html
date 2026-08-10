@@ -137,6 +137,8 @@
 
         function descargarPDF() {
             const win = window.open('', '_blank', 'width=800,height=600');
+            const imgFirma = !signaturePad.isEmpty() ? '<img src="' + signaturePad.toDataURL() + '" alt="Firma del Técnico"/>' : '<p><em>Sin firma</em></p>';
+            
             const contenido = `
                 <html>
                     <head>
@@ -158,12 +160,12 @@
                         
                         <div class="firma-box">
                             <p><strong>Firma del Técnico:</strong></p>
-                            ${!signaturePad.isEmpty() ? `<img src="${signaturePad.toDataURL()}" alt="Firma del Técnico"/>` : '<p><em>Sin firma</em></p>'}
+                            ${imgFirma}
                         </div>
                         
                         <script>
                             window.onload = function() { window.print(); }
-                        </script>
+                        <\/script>
                     </body>
                 </html>
             `;
