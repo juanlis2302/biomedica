@@ -80,7 +80,6 @@
             if (!equipoId) { alert("No se especificó un equipo."); window.location.href = "/static/index.html"; return; }
             document.getElementById("linkVolver").href = `/static/hoja_vida.html?equipo_id=${equipoId}`;
 
-            // Inicializar el pad de firmas
             const canvas = document.getElementById('signature-pad');
             signaturePad = new SignaturePad(canvas);
 
@@ -125,7 +124,7 @@
 
                 if (res.ok) {
                     alert("Mantenimiento registrado correctamente por: " + usuario.nombre_completo);
-                    location.reload();
+                    window.location.href = `/static/hoja_vida.html?equipo_id=${equipoId}`;
                 } else {
                     const errorData = await res.json();
                     alert("Error al registrar el mantenimiento: " + (errorData.detail || "Verifica los datos"));
@@ -137,17 +136,39 @@
         }
 
         function descargarPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text("Reporte de Mantenimiento - BioMant IA", 14, 20);
-            doc.text("Servicio: " + document.getElementById("tipo_servicio").value, 14, 30);
-            doc.text("Modalidad: " + document.getElementById("modalidad").value, 14, 40);
-            doc.text("Descripción: " + document.getElementById("descripcion").value, 14, 50);
-            
-            if (!signaturePad.isEmpty()) {
-                doc.addImage(signaturePad.toDataURL(), "PNG", 14, 65, 60, 25);
-            }
-            doc.save("Reporte_Mantenimiento.pdf");
+            const win = window.open('', '_blank', 'width=800,height=600');
+            const contenido = `
+                <html>
+                    <head>
+                        <title>Reporte Técnico</title>
+                        <style>
+                            body { font-family: Arial; padding: 30px; color: #333; }
+                            h2 { color: #003366; border-bottom: 2px solid #003366; padding-bottom: 5px; }
+                            .info { margin-bottom: 10px; font-size: 14px; }
+                            .firma-box { margin-top: 30px; }
+                            .firma-box img { max-width: 250px; border: 1px solid #ccc; padding: 5px; background: #fff; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Reporte de Mantenimiento - BioMant IA</h2>
+                        <p class="info"><strong>Tipo de Servicio:</strong> ${document.getElementById("tipo_servicio").value}</p>
+                        <p class="info"><strong>Modalidad:</strong> ${document.getElementById("modalidad").value}</p>
+                        <p class="info"><strong>Descripción:</strong> ${document.getElementById("descripcion").value}</p>
+                        <p class="info"><strong>Costo:</strong> $${Number(document.getElementById("costo").value || 0).toLocaleString()}</p>
+                        
+                        <div class="firma-box">
+                            <p><strong>Firma del Técnico:</strong></p>
+                            ${!signaturePad.isEmpty() ? `<img src="${signaturePad.toDataURL()}" alt="Firma del Técnico"/>` : '<p><em>Sin firma</em></p>'}
+                        </div>
+                        
+                        <script>
+                            window.onload = function() { window.print(); }
+                        </script>
+                    </body>
+                </html>
+            `;
+            win.document.write(contenido);
+            win.document.close();
         }
     </script>
 </body>

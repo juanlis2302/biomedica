@@ -123,7 +123,21 @@ def crear_sede(datos: schemas.SedeCreate, db: Session = Depends(get_db)):
     db.refresh(nueva_sede)
     return {"mensaje": "Sede creada con éxito", "id": nueva_sede.id}
 
-# --- EQUIPOS ---
+# --- EQUIPOS (Rutas estáticas PRIMERO para evitar conflictos con {equipo_id}) ---
+@app.get("/equipos/plantilla/descargar", tags=["Inventario"])
+def descargar_plantilla():
+    return {"mensaje": "Plantilla lista"}
+
+@app.get("/equipos/exportar/", tags=["Inventario"])
+def exportar_inventario(empresa_id: Optional[int] = None, sede_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Equipo)
+    if sede_id:
+        query = query.filter(models.Equipo.sede_id == sede_id)
+    elif empresa_id:
+        query = query.join(models.Sede).filter(models.Sede.empresa_id == empresa_id)
+    equipos = query.all()
+    return {"total_equipos": len(equipos), "mensaje": "Inventario listo para exportar"}
+
 @app.get("/equipos/", tags=["Inventario"])
 def listar_equipos(empresa_id: Optional[int] = None, sede_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(models.Equipo)
@@ -147,6 +161,84 @@ def obtener_equipo(equipo_id: int, db: Session = Depends(get_db)):
     if not equipo:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
     return equipo
+
+# --- MANTENIMIENTOS ---
+@app.post("/mantenimientos/", tags=["Mantenimientos"])
+def crear_mantenimiento(
+    equipo_id: int = Form(...),
+    tipo_servicio: str = Form(...),
+    modalidad: str = Form(...),
+    consecutivo_externo: Optional[str] = Form(None),
+    proveedor_servicio: Optional[str] = Form(None),
+    descripcion_trabajo: str = Form(...),
+    costo: float = Form(0.0),
+    firma_tecnico: Optional[str] = Form(None),
+    usuario_id: Optional[int] = Form(None),
+    db: Session = Depends(get_db)
+):
+    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+
+    nuevo_mtto = models.Mantenimiento(
+        equipo_id=equipo_id,
+        tipo_servicio=tipo_servicio,
+        modalidad=modalidad,
+        consecutivo_externo=consecutivo_externo,
+        proveedor_servicio=proveedor_servicio,
+        descripcion_trabajo=descripcion_trabajo,
+        costo=costo,
+        firma_tecnico=firma_tecnico,
+        usuario_id=usuario_id
+    )
+
+    db.add(nuevo_mtto)
+    db.commit()
+    db.refresh(nuevo_mtto)
+    
+    return {"mensaje": "Mantenimiento registrado con éxito", "id": nuevo_mtto.id}
+
+@app.get("/mantenimientos/equipo/{equipo_id}", tags=["Mantenimientos"])
+def listar_mantenimientos_equipo(equipo_id: int, db: Session = Depends(get_db)):
+    mantenimientos = db.query(models.Mantenimiento).filter(models.Mantenimiento.equipo_id == equipo_id).all()
+    return mantenimientos
+
+# --- TRASLADOS ---
+@app.post("/traslados/", tags=["Traslados"])
+def crear_traslado(
+    equipo_id: int = Form(...),
+    sede_destino_id: int = Form(...),
+    ubicacion_destino: str = Form(...),
+    motivo: str = Form(...),
+    usuario_id: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    
+    nuevo_traslado = models.HistorialTraslado(
+        equipo_id=equipo_id,
+        sede_origen_id=equipo.sede_id,
+        ubicacion_origen=equipo.ubicacion_interna,
+        sede_destino_id=sede_destino_id,
+        ubicacion_destino=ubicacion_destino,
+        motivo=motivo,
+        usuario_id=usuario_id
+    )
+    
+    equipo.sede_id = sede_destino_id
+    equipo.ubicacion_interna = ubicacion_destino
+    
+    db.add(nuevo_traslado)
+    db.commit()
+    db.refresh(nuevo_traslado)
+    
+    return {"mensaje": "Traslado registrado con éxito", "id": nuevo_traslado.id}
+
+@app.get("/traslados/equipo/{equipo_id}", tags=["Traslados"])
+def listar_traslados_equipo(equipo_id: int, db: Session = Depends(get_db)):
+    return db.query(models.HistorialTraslado).filter(models.HistorialTraslado.equipo_id == equipo_id).all()
 
 # --- GESTIÓN DE USUARIOS ---
 @app.get("/usuarios/", tags=["Usuarios"])
@@ -207,82 +299,3 @@ def metricas_tecnicos(empresa_id: int, db: Session = Depends(get_db)):
     for mtto in mantenimientos:
         if mtto.usuario_id: conteo[mtto.usuario_id] += 1
     return conteo
-# --- TRASLADOS ---
-@app.post("/traslados/", tags=["Traslados"])
-def crear_traslado(
-    equipo_id: int = Form(...),
-    sede_destino_id: int = Form(...),
-    ubicacion_destino: str = Form(...),
-    motivo: str = Form(...),
-    usuario_id: int = Form(...),
-    db: Session = Depends(get_db)
-):
-    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
-    if not equipo:
-        raise HTTPException(status_code=404, detail="Equipo no encontrado")
-    
-    # Registrar el historial del traslado
-    nuevo_traslado = models.HistorialTraslado(
-        equipo_id=equipo_id,
-        sede_origen_id=equipo.sede_id,
-        ubicacion_origen=equipo.ubicacion_interna,
-        sede_destino_id=sede_destino_id,
-        ubicacion_destino=ubicacion_destino,
-        motivo=motivo,
-        usuario_id=usuario_id
-    )
-    
-    # Actualizar la sede y la ubicación interna actual del equipo
-    equipo.sede_id = sede_destino_id
-    equipo.ubicacion_interna = ubicacion_destino
-    
-    db.add(nuevo_traslado)
-    db.commit()
-    db.refresh(nuevo_traslado)
-    
-    return {"mensaje": "Traslado registrado con éxito", "id": nuevo_traslado.id}
-
-@app.get("/traslados/equipo/{equipo_id}", tags=["Traslados"])
-def listar_traslados_equipo(equipo_id: int, db: Session = Depends(get_db)):
-    traslados = db.query(models.HistorialTraslado).filter(models.HistorialTraslado.equipo_id == equipo_id).all()
-    return traslados
-# --- MANTENIMIENTOS ---
-@app.post("/mantenimientos/", tags=["Mantenimientos"])
-def crear_mantenimiento(
-    equipo_id: int = Form(...),
-    tipo_servicio: str = Form(...),
-    modalidad: str = Form(...),
-    consecutivo_externo: Optional[str] = Form(None),
-    proveedor_servicio: Optional[str] = Form(None),
-    descripcion_trabajo: str = Form(...),
-    costo: float = Form(0.0),
-    firma_tecnico: Optional[str] = Form(None),
-    usuario_id: Optional[int] = Form(None),
-    db: Session = Depends(get_db)
-):
-    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
-    if not equipo:
-        raise HTTPException(status_code=404, detail="Equipo no encontrado")
-
-    nuevo_mtto = models.Mantenimiento(
-        equipo_id=equipo_id,
-        tipo_servicio=tipo_servicio,
-        modalidad=modalidad,
-        consecutivo_externo=consecutivo_externo,
-        proveedor_servicio=proveedor_servicio,
-        descripcion_trabajo=descripcion_trabajo,
-        costo=costo,
-        firma_tecnico=firma_tecnico,
-        usuario_id=usuario_id
-    )
-
-    db.add(nuevo_mtto)
-    db.commit()
-    db.refresh(nuevo_mtto)
-    
-    return {"mensaje": "Mantenimiento registrado con éxito", "id": nuevo_mtto.id}
-
-@app.get("/mantenimientos/equipo/{equipo_id}", tags=["Mantenimientos"])
-def listar_mantenimientos_equipo(equipo_id: int, db: Session = Depends(get_db)):
-    mantenimientos = db.query(models.Mantenimiento).filter(models.Mantenimiento.equipo_id == equipo_id).all()
-    return mantenimientos
