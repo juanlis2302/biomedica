@@ -17,7 +17,7 @@
 <body>
     <div class="container">
         <h1>Panel de Control Biomédico</h1>
-        <div class="nav-bar"><a href="index.html">← Volver al Inventario</a></div>
+        <div class="nav-bar"><a href="/static/index.html">← Volver al Inventario</a></div>
 
         <div class="kpi-container">
             <div class="kpi-card"><h3>Equipos Totales</h3><p id="totalEquipos">0</p></div>
@@ -32,7 +32,9 @@
     </div>
 
     <script>
-        const API_URL = "http://127.0.0.1:8000";
+        const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+            ? "http://127.0.0.1:8000" 
+            : "";
 
         async function cargarDashboard() {
             const usuario = JSON.parse(sessionStorage.getItem("usuarioLogueado"));
@@ -59,7 +61,7 @@
                                 <td>${eq.nombre_equipo}</td>
                                 <td>${eq.serie}</td>
                                 <td>${eq.proximo_mtto}</td>
-                                <td><button onclick="location.href='mantenimientos.html?equipo_id=${eq.id}'">Registrar</button></td>
+                                <td><button onclick="location.href='/static/mantenimientos.html?equipo_id=${eq.id}'">Registrar</button></td>
                             </tr>`;
                     }
                 }

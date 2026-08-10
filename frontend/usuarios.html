@@ -22,8 +22,8 @@
 <body>
     <div class="container">
         <div class="nav-bar">
-            <a href="index.html">← Volver al Inventario</a>
-            <button class="btn-logout" onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</button>
+            <a href="/static/index.html">← Volver al Inventario</a>
+            <button class="btn-logout" onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='/static/index.html';">Cerrar Sesión</button>
         </div>
 
         <h2 style="color: #003366;">Crear Credenciales</h2>
@@ -54,28 +54,28 @@
     </div>
 
     <script>
-        const API_URL = "http://127.0.0.1:8000";
+        const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+            ? "http://127.0.0.1:8000" 
+            : "";
         let empresasMap = {};
         let usuarioActual = null;
 
         window.addEventListener("DOMContentLoaded", async () => {
             const sesion = localStorage.getItem("usuarioLogueado");
-            if (!sesion) { window.location.href = "index.html"; return; }
+            if (!sesion) { window.location.href = "/static/index.html"; return; }
             usuarioActual = JSON.parse(sesion);
-            if (usuarioActual.rol === "tecnico") { window.location.href = "index.html"; return; }
+            if (usuarioActual.rol === "tecnico") { window.location.href = "/static/index.html"; return; }
 
             if (usuarioActual.rol === "super_admin") {
                 document.getElementById("optSuperAdmin").style.display = "block";
             }
 
-            // Cargar empresas para el select y los nombres
             const resEmp = await fetch(`${API_URL}/empresas/`);
             const empresas = await resEmp.json();
             const selectEmp = document.getElementById("usu_empresa");
 
             empresas.forEach(emp => {
                 empresasMap[emp.id] = emp.nombre;
-                // Si es admin, solo muestra SU empresa
                 if (usuarioActual.rol === "admin" && emp.id !== usuarioActual.empresa_id) return;
                 let opt = document.createElement("option");
                 opt.value = emp.id;

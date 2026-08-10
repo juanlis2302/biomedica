@@ -19,7 +19,7 @@
 <body>
     <div class="container">
         <div style="margin-bottom: 15px;">
-            <a id="linkVolver" href="index.html" style="color: #003366; text-decoration: none; font-weight: bold;">← Volver al Inventario</a>
+            <a id="linkVolver" href="/static/index.html" style="color: #003366; text-decoration: none; font-weight: bold;">← Volver al Inventario</a>
         </div>
 
         <h2>Registro de Traslado de Equipo</h2>
@@ -48,36 +48,36 @@
     </div>
 
     <script>
-        const API_URL = "http://127.0.0.1:8000";
+        const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+            ? "http://127.0.0.1:8000" 
+            : "";
         const urlParams = new URLSearchParams(window.location.search);
         const equipoId = urlParams.get('equipo_id');
 
         window.addEventListener("DOMContentLoaded", async () => {
             if (!equipoId) {
                 alert("No se especificó un equipo.");
-                window.location.href = "index.html";
+                window.location.href = "/static/index.html";
                 return;
             }
 
-            document.getElementById("linkVolver").href = `hoja_vida.html?equipo_id=${equipoId}`;
+            document.getElementById("linkVolver").href = `/static/hoja_vida.html?equipo_id=${equipoId}`;
             const sesion = sessionStorage.getItem("usuarioLogueado") || localStorage.getItem("usuarioLogueado");
             if (!sesion) {
                 alert("Debe iniciar sesión.");
-                window.location.href = "index.html";
+                window.location.href = "/static/index.html";
                 return;
             }
 
             const usuario = JSON.parse(sesion);
 
             try {
-                // 1. Cargar datos del equipo
                 const resEq = await fetch(`${API_URL}/equipos/${equipoId}`);
                 if (resEq.ok) {
                     const eq = await resEq.json();
                     document.getElementById("infoEquipo").innerText = `Equipo: ${eq.nombre_equipo} | Serie: ${eq.serie} | Ubicación Actual: ${eq.ubicacion_interna}`;
                 }
 
-                // 2. Cargar sedes de la empresa para el selector
                 const resSedes = await fetch(`${API_URL}/sedes/?empresa_id=${usuario.empresa_id}`);
                 if (resSedes.ok) {
                     const sedes = await resSedes.json();
@@ -106,7 +106,7 @@
                 const res = await fetch(`${API_URL}/traslados/`, { method: "POST", body: fd });
                 if (res.ok) {
                     alert("¡Traslado registrado y equipo actualizado con éxito!");
-                    window.location.href = `hoja_vida.html?equipo_id=${equipoId}`;
+                    window.location.href = `/static/hoja_vida.html?equipo_id=${equipoId}`;
                 } else {
                     const err = await res.json();
                     alert("Error al registrar el traslado: " + (err.detail || "Verifique los datos"));

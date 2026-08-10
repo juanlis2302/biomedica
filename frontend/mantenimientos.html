@@ -24,7 +24,7 @@
 <body>
     <div class="container">
         <div style="margin-bottom: 15px;">
-            <a id="linkVolver" href="index.html" style="color: #003366; text-decoration: none; font-weight: bold;">← Volver al Expediente</a>
+            <a id="linkVolver" href="/static/index.html" style="color: #003366; text-decoration: none; font-weight: bold;">← Volver al Expediente</a>
         </div>
 
         <h2>Registro de Reporte de Mantenimiento</h2>
@@ -69,14 +69,16 @@
     </div>
 
     <script>
-        const API_URL = "http://127.0.0.1:8000";
+        const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+            ? "http://127.0.0.1:8000" 
+            : "";
         const urlParams = new URLSearchParams(window.location.search);
         const equipoId = urlParams.get('equipo_id');
         let signaturePad;
 
         window.addEventListener("DOMContentLoaded", async () => {
-            if (!equipoId) { alert("No se especificó un equipo."); window.location.href = "index.html"; return; }
-            document.getElementById("linkVolver").href = `hoja_vida.html?equipo_id=${equipoId}`;
+            if (!equipoId) { alert("No se especificó un equipo."); window.location.href = "/static/index.html"; return; }
+            document.getElementById("linkVolver").href = `/static/hoja_vida.html?equipo_id=${equipoId}`;
 
             // Inicializar el pad de firmas
             const canvas = document.getElementById('signature-pad');
@@ -101,7 +103,6 @@
             }
             const usuario = JSON.parse(usuarioJSON);
 
-            // Validar que se haya firmado
             if (signaturePad.isEmpty()) {
                 alert("Por favor, registre la firma del técnico antes de guardar.");
                 return;
@@ -113,8 +114,6 @@
             formData.append("modalidad", document.getElementById("modalidad").value);
             formData.append("descripcion_trabajo", document.getElementById("descripcion").value);
             formData.append("costo", document.getElementById("costo").value);
-            
-            // Extraemos la firma del canvas en formato Base64 de forma correcta
             formData.append("firma_tecnico", signaturePad.toDataURL()); 
             formData.append("usuario_id", usuario.id);
 
