@@ -59,7 +59,7 @@
                 <div class="form-group"><label>Activo Fijo:</label><input type="text" id="activo_fijo"></div>
                 <div class="form-group"><label>Ubicación Interna:</label><input type="text" id="ubicacion_interna"></div>
                 <div class="form-group"><label>Código de Prestador (Sede):</label><input type="text" id="codigo_prestador" readonly style="background:#e9ecef;"></div>
-                <div class="form-group"><label>Reg. INVIMA:</label><input type="text" id="invima"></div>
+                <div class="form-group"><label>Reg. INVIMA:</label><input type="text" id="registro_sanitario"></div>
                 <div class="form-group">
                     <label>Clasificación de Riesgo:</label>
                     <select id="riesgo">
@@ -80,7 +80,7 @@
 
                 <div class="form-group" id="grupoCosto">
                     <label id="labelCosto">Costo / Canon ($):</label>
-                    <input type="number" step="0.01" id="costo" value="0">
+                    <input type="number" step="0.01" id="costo_canon" value="0">
                 </div>
                 
                 <div class="form-group" id="grupoTipoAlquiler" style="display: none;">
@@ -163,8 +163,14 @@
 
         function toggleCamposAlquiler() {
             const val = document.getElementById("adquisicion").value;
-            document.getElementById("grupoTipoAlquiler").style.display = (val === "Alquilado") ? "flex" : "none";
-            document.getElementById("labelCosto").innerText = (val === "Alquilado") ? "Canon de Alquiler ($):" : "Costo de Adquisición ($):";
+            const grupoAlquiler = document.getElementById("grupoTipoAlquiler");
+            if (grupoAlquiler) {
+                grupoAlquiler.style.display = (val === "Alquilado") ? "flex" : "none";
+            }
+            const labelCosto = document.getElementById("labelCosto");
+            if (labelCosto) {
+                labelCosto.innerText = (val === "Alquilado") ? "Canon de Alquiler ($):" : "Costo de Adquisición ($):";
+            }
         }
 
         async function cargarDatosEquipo() {
@@ -172,7 +178,9 @@
                 const res = await fetch(`${API_URL}/equipos/${equipoId}`);
                 if (res.ok) {
                     const eq = await res.json();
-                    document.getElementById("tituloEquipoHeader").innerText = `${eq.nombre_equipo} (Serie: ${eq.serie || 'N/A'}) - Sede: ${eq.nombre_sede}`;
+                    
+                    document.getElementById("tituloEquipoHeader").innerText = `${eq.nombre_equipo || 'Equipo'} (Serie: ${eq.serie || 'N/A'}) - Sede: ${eq.nombre_sede || 'Sin Sede'}`;
+                    
                     document.getElementById("nombre_equipo").value = eq.nombre_equipo || "";
                     document.getElementById("marca").value = eq.marca || "";
                     document.getElementById("modelo").value = eq.modelo || "";
@@ -180,22 +188,26 @@
                     document.getElementById("activo_fijo").value = eq.activo_fijo || "";
                     document.getElementById("ubicacion_interna").value = eq.ubicacion_interna || "";
                     document.getElementById("codigo_prestador").value = eq.codigo_prestador || "N/A";
-                    document.getElementById("invima").value = eq.registro_sanitario || "";
+                    document.getElementById("registro_sanitario").value = eq.registro_sanitario || "";
                     document.getElementById("riesgo").value = eq.riesgo || "I";
                     document.getElementById("proveedor").value = eq.proveedor || "";
-                    document.getElementById("costo").value = eq.costo_canon || 0;
+                    document.getElementById("costo_canon").value = eq.costo_canon || 0;
                     document.getElementById("adquisicion").value = eq.adquisicion || "Propio";
                     document.getElementById("tipo_alquiler").value = eq.tipo_alquiler || "Mensual";
                     document.getElementById("periodicidad_mtto").value = eq.periodicidad_mtto || "Anual";
                     
-                    if(eq.fecha_inicio_alquiler) document.getElementById("fecha_inicio_alquiler").value = eq.fecha_inicio_alquiler;
-                    if(eq.fecha_fin_alquiler) document.getElementById("fecha_fin_alquiler").value = eq.fecha_fin_alquiler;
-                    if(eq.proximo_mtto) document.getElementById("proximo_mtto").value = eq.proximo_mtto;
-                    if(eq.imagen_url) document.getElementById("imgEquipo").src = `${API_URL}/${eq.imagen_url}`;
+                    if (eq.fecha_inicio_alquiler) document.getElementById("fecha_inicio_alquiler").value = eq.fecha_inicio_alquiler;
+                    if (eq.fecha_fin_alquiler) document.getElementById("fecha_fin_alquiler").value = eq.fecha_fin_alquiler;
+                    if (eq.proximo_mtto) document.getElementById("proximo_mtto").value = eq.proximo_mtto;
+                    if (eq.imagen_url) document.getElementById("imgEquipo").src = `${API_URL}/${eq.imagen_url}`;
                     
                     toggleCamposAlquiler();
+                } else {
+                    alert("No se pudo cargar la información del equipo.");
                 }
-            } catch (e) { console.error("Error al cargar datos:", e); }
+            } catch (e) { 
+                console.error("Error al cargar datos:", e); 
+            }
         }
 
         async function cargarHistoriales() {
@@ -216,7 +228,7 @@
                                     <td>${m.modalidad}</td>
                                     <td>${m.descripcion_trabajo}</td>
                                     <td>$${(m.costo || 0).toLocaleString()}</td>
-                                    <td><button onclick="descargarReporteIndividualDecode('${datosMttoStr}')" class="btn-accion">📄 Reporte</button></td>
+                                    <td><button type="button" onclick="descargarReporteIndividualDecode('${datosMttoStr}')" class="btn-accion">📄 Reporte</button></td>
                                 </tr>
                             `;
                         }).join('');
@@ -292,7 +304,7 @@
                                 <td>${d.nombre_archivo}</td>
                                 <td>
                                     <a href="${API_URL}/${d.url}" target="_blank" class="btn-accion" style="background:#17a2b8;">📥 Descargar</a>
-                                    <button onclick="eliminarDocumento(${d.id})" class="btn-accion" style="background:#dc3545; margin-left:5px;">🗑️ Eliminar</button>
+                                    <button type="button" onclick="eliminarDocumento(${d.id})" class="btn-accion" style="background:#dc3545; margin-left:5px;">🗑️ Eliminar</button>
                                 </td>
                             </tr>
                         `).join('');
@@ -319,9 +331,15 @@
 
         async function actualizarEquipo() {
             const formData = new FormData();
-            ["nombre_equipo", "marca", "modelo", "serie", "activo_fijo", "ubicacion_interna", "invima", "riesgo", "proveedor", "costo", "adquisicion", "tipo_alquiler", "periodicidad_mtto", "proximo_mtto", "fecha_inicio_alquiler", "fecha_fin_alquiler"].forEach(id => {
+            ["nombre_equipo", "marca", "modelo", "serie", "activo_fijo", "ubicacion_interna", "registro_sanitario", "riesgo", "proveedor", "costo_canon", "adquisicion", "tipo_alquiler", "periodicidad_mtto", "proximo_mtto", "fecha_inicio_alquiler", "fecha_fin_alquiler"].forEach(id => {
                 const el = document.getElementById(id);
-                formData.append(id, el ? el.value : "");
+                if (id === "costo_canon") {
+                    formData.append("costo", el ? el.value : 0);
+                } else if (id === "registro_sanitario") {
+                    formData.append("invima", el ? el.value : "");
+                } else {
+                    formData.append(id, el ? el.value : "");
+                }
             });
 
             try {
