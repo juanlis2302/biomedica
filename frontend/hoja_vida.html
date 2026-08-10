@@ -27,7 +27,6 @@
         @media print {
             body { background: white; padding: 0; }
             .container { box-shadow: none; padding: 0; }
-            /* AQUÍ ESTÁ LA MAGIA: Ocultamos los botones y el div con id "seccion-traslados" */
             .nav-volver, .btn-guardar, input[type="file"], button, #seccion-traslados { display: none !important; }
             input, select { border: none; background: transparent; padding: 0; font-weight: bold; }
         }
@@ -59,6 +58,7 @@
                 <div class="form-group"><label>Serie:</label><input type="text" id="serie"></div>
                 <div class="form-group"><label>Activo Fijo:</label><input type="text" id="activo_fijo"></div>
                 <div class="form-group"><label>Ubicación Interna:</label><input type="text" id="ubicacion_interna"></div>
+                <div class="form-group"><label>Código de Prestador (Sede):</label><input type="text" id="codigo_prestador" readonly style="background:#e9ecef;"></div>
                 <div class="form-group"><label>Reg. INVIMA:</label><input type="text" id="invima"></div>
                 <div class="form-group">
                     <label>Clasificación de Riesgo:</label>
@@ -132,7 +132,6 @@
             <tbody id="bodyMantenimientos"><tr><td colspan="6" style="text-align:center;">Cargando...</td></tr></tbody>
         </table>
 
-        <!-- Envolvemos la sección de traslados en este div para ocultarlo al imprimir -->
         <div id="seccion-traslados">
             <h3>Historial de Traslados</h3>
             <table>
@@ -173,13 +172,14 @@
                 const res = await fetch(`${API_URL}/equipos/${equipoId}`);
                 if (res.ok) {
                     const eq = await res.json();
-                    document.getElementById("tituloEquipoHeader").innerText = `${eq.nombre_equipo} (Serie: ${eq.serie || 'N/A'})`;
+                    document.getElementById("tituloEquipoHeader").innerText = `${eq.nombre_equipo} (Serie: ${eq.serie || 'N/A'}) - Sede: ${eq.nombre_sede}`;
                     document.getElementById("nombre_equipo").value = eq.nombre_equipo || "";
                     document.getElementById("marca").value = eq.marca || "";
                     document.getElementById("modelo").value = eq.modelo || "";
                     document.getElementById("serie").value = eq.serie || "";
                     document.getElementById("activo_fijo").value = eq.activo_fijo || "";
                     document.getElementById("ubicacion_interna").value = eq.ubicacion_interna || "";
+                    document.getElementById("codigo_prestador").value = eq.codigo_prestador || "N/A";
                     document.getElementById("invima").value = eq.registro_sanitario || "";
                     document.getElementById("riesgo").value = eq.riesgo || "I";
                     document.getElementById("proveedor").value = eq.proveedor || "";
@@ -274,7 +274,6 @@
                     </body>
                 </html>
             `;
-            
             win.document.write(contenido);
             win.document.close();
         }

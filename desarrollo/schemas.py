@@ -28,6 +28,7 @@ class SedeBase(BaseModel):
     direccion: Optional[str] = "Sin dirección"
     ciudad: Optional[str] = Field(default="Bogotá")
     telefono: Optional[str] = Field(default="N/A")
+    codigo_prestador: Optional[str] = Field(default="N/A") # <--- NUEVO
 
 class SedeCreate(SedeBase):
     pass

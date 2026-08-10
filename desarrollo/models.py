@@ -25,14 +25,12 @@ class Sede(Base):
     direccion = Column(String(150), nullable=False)
     ciudad = Column(String(100), nullable=False)
     telefono = Column(String(50), nullable=True)
+    codigo_prestador = Column(String(50), nullable=True) # <--- NUEVO CAMPO
     
     empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False)
-
-    # Relaciones
     empresa = relationship("Empresa", back_populates="sedes")
     equipos = relationship("Equipo", back_populates="sede")
-
-
+    
 class Usuario(Base):
     __tablename__ = "usuarios"
 

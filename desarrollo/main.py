@@ -11,18 +11,14 @@ import bcrypt
 import pandas as pd
 import io
 
-# Importaciones de tu estructura
 import models
 import schemas
 from database import engine, get_db
 
-# 1. Crear las tablas automáticamente en la BD al iniciar
 models.Base.metadata.create_all(bind=engine)
 
-# 2. Inicializar FastAPI
 app = FastAPI(title="BioMant IA API", version="1.0.0")
 
-# --- CONFIGURACIÓN CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,19 +27,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- ARCHIVOS ESTÁTICOS Y FRONTEND ---
 os.makedirs("documentos", exist_ok=True)
 app.mount("/documentos", StaticFiles(directory="documentos"), name="documentos")
 
-# Ruta absoluta hacia la carpeta frontend
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 
-# Montar los estáticos del frontend
 if os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-# Ruta principal para cargar el index.html
 @app.get("/")
 def leer_index():
     archivo_index = os.path.join(frontend_path, "index.html")
@@ -51,14 +43,12 @@ def leer_index():
         return FileResponse(archivo_index)
     return {"error": "index.html no encontrado", "ruta": archivo_index}
 
-# --- SEGURIDAD ---
 def verificar_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8')[:72], hashed_password.encode('utf-8'))
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
-# --- LOGIN ---
 @app.post("/login", tags=["Usuarios"])
 def iniciar_sesion(datos: schemas.LoginRequest, db: Session = Depends(get_db)):
     usuario = db.query(models.Usuario).filter(models.Usuario.email == datos.email).first()
@@ -76,7 +66,6 @@ def iniciar_sesion(datos: schemas.LoginRequest, db: Session = Depends(get_db)):
         }
     }
 
-# --- EMPRESAS ---
 @app.get("/empresas/", tags=["Empresas"])
 def listar_empresas(db: Session = Depends(get_db)):
     return db.query(models.Empresa).all()
@@ -103,7 +92,6 @@ def cambiar_estado_empresa(empresa_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"mensaje": "Estado de empresa actualizado", "activo": empresa.activo}
 
-# --- SEDES ---
 @app.get("/sedes/", tags=["Sedes"])
 def listar_sedes(empresa_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(models.Sede)
@@ -112,36 +100,40 @@ def listar_sedes(empresa_id: Optional[int] = None, db: Session = Depends(get_db)
     return query.all()
 
 @app.post("/sedes/", tags=["Sedes"])
-def crear_sede(datos: schemas.SedeCreate, db: Session = Depends(get_db)):
+def crear_sede(
+    nombre_sede: str = Form(...),
+    empresa_id: int = Form(...),
+    direccion: str = Form("Sin dirección"),
+    ciudad: str = Form("Bogotá"),
+    telefono: str = Form("N/A"),
+    codigo_prestador: Optional[str] = Form("N/A"),
+    db: Session = Depends(get_db)
+):
     nueva_sede = models.Sede(
-        nombre_sede=datos.nombre_sede,
-        empresa_id=datos.empresa_id,
-        direccion=datos.direccion or "Sin dirección",
-        ciudad=datos.ciudad or "Bogotá",
-        telefono=datos.telefono or "N/A"
+        nombre_sede=nombre_sede,
+        empresa_id=empresa_id,
+        direccion=direccion,
+        ciudad=ciudad,
+        telefono=telefono,
+        codigo_prestador=codigo_prestador
     )
     db.add(nueva_sede)
     db.commit()
     db.refresh(nueva_sede)
     return {"mensaje": "Sede creada con éxito", "id": nueva_sede.id}
 
-# --- EQUIPOS (Rutas estáticas PRIMERO para evitar conflictos con {equipo_id}) ---
 @app.get("/equipos/plantilla/descargar", tags=["Inventario"])
 def descargar_plantilla():
-    # Creamos las columnas exactas que se necesitan para la carga masiva
     columnas = [
         "nombre_equipo", "marca", "modelo", "serie", "activo_fijo",
         "ubicacion_interna", "registro_sanitario", "riesgo", "adquisicion",
         "costo_canon", "proveedor", "tipo_alquiler", "periodicidad_mtto", "sede_id"
     ]
     df = pd.DataFrame(columns=columnas)
-    
-    # Generamos el Excel en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Plantilla_Carga')
     output.seek(0)
-    
     headers = {'Content-Disposition': 'attachment; filename="plantilla_equipos.xlsx"'}
     return StreamingResponse(output, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers=headers)
 
@@ -154,8 +146,6 @@ def exportar_inventario(empresa_id: Optional[int] = None, sede_id: Optional[int]
         query = query.join(models.Sede).filter(models.Sede.empresa_id == empresa_id)
     
     equipos = query.all()
-    
-    # Agregamos TODOS los campos definidos en tu modelo Equipo
     data = []
     for eq in equipos:
         data.append({
@@ -184,12 +174,10 @@ def exportar_inventario(empresa_id: Optional[int] = None, sede_id: Optional[int]
         })
     
     df = pd.DataFrame(data)
-    
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Inventario_Completo')
     output.seek(0)
-    
     headers = {'Content-Disposition': 'attachment; filename="inventario_completo.xlsx"'}
     return StreamingResponse(output, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers=headers)
 
@@ -215,9 +203,13 @@ def obtener_equipo(equipo_id: int, db: Session = Depends(get_db)):
     equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
     if not equipo:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
-    return equipo
+    
+    sede = db.query(models.Sede).filter(models.Sede.id == equipo.sede_id).first()
+    resultado = equipo.__dict__.copy()
+    resultado["nombre_sede"] = sede.nombre_sede if sede else "Sin sede"
+    resultado["codigo_prestador"] = sede.codigo_prestador if sede else "N/A"
+    return resultado
 
-# --- MANTENIMIENTOS ---
 @app.post("/mantenimientos/", tags=["Mantenimientos"])
 def crear_mantenimiento(
     equipo_id: int = Form(...),
@@ -246,19 +238,15 @@ def crear_mantenimiento(
         firma_tecnico=firma_tecnico,
         usuario_id=usuario_id
     )
-
     db.add(nuevo_mtto)
     db.commit()
     db.refresh(nuevo_mtto)
-    
     return {"mensaje": "Mantenimiento registrado con éxito", "id": nuevo_mtto.id}
 
 @app.get("/mantenimientos/equipo/{equipo_id}", tags=["Mantenimientos"])
 def listar_mantenimientos_equipo(equipo_id: int, db: Session = Depends(get_db)):
-    mantenimientos = db.query(models.Mantenimiento).filter(models.Mantenimiento.equipo_id == equipo_id).all()
-    return mantenimientos
+    return db.query(models.Mantenimiento).filter(models.Mantenimiento.equipo_id == equipo_id).all()
 
-# --- TRASLADOS ---
 @app.post("/traslados/", tags=["Traslados"])
 def crear_traslado(
     equipo_id: int = Form(...),
@@ -281,21 +269,18 @@ def crear_traslado(
         motivo=motivo,
         usuario_id=usuario_id
     )
-    
     equipo.sede_id = sede_destino_id
     equipo.ubicacion_interna = ubicacion_destino
     
     db.add(nuevo_traslado)
     db.commit()
     db.refresh(nuevo_traslado)
-    
     return {"mensaje": "Traslado registrado con éxito", "id": nuevo_traslado.id}
 
 @app.get("/traslados/equipo/{equipo_id}", tags=["Traslados"])
 def listar_traslados_equipo(equipo_id: int, db: Session = Depends(get_db)):
     return db.query(models.HistorialTraslado).filter(models.HistorialTraslado.equipo_id == equipo_id).all()
 
-# --- GESTIÓN DE USUARIOS ---
 @app.get("/usuarios/", tags=["Usuarios"])
 def listar_usuarios(empresa_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(models.Usuario)
@@ -331,7 +316,6 @@ def cambiar_estado_usuario(usuario_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"mensaje": "Estado actualizado", "activo": usuario.activo}
 
-# --- DASHBOARD ---
 @app.get("/dashboard/metricas/", tags=["Dashboard"])
 def obtener_metricas_dashboard(empresa_id: Optional[int] = None, db: Session = Depends(get_db)):
     query = db.query(models.Equipo)
@@ -351,6 +335,15 @@ def obtener_metricas_dashboard(empresa_id: Optional[int] = None, db: Session = D
 def metricas_tecnicos(empresa_id: int, db: Session = Depends(get_db)):
     mantenimientos = db.query(models.Mantenimiento).join(models.Equipo).join(models.Sede).filter(models.Sede.empresa_id == empresa_id).all()
     conteo = defaultdict(int)
+    nombres_usuarios = {}
+    
     for mtto in mantenimientos:
-        if mtto.usuario_id: conteo[mtto.usuario_id] += 1
+        if mtto.usuario_id:
+            if mtto.usuario_id not in nombres_usuarios:
+                usr = db.query(models.Usuario).filter(models.Usuario.id == mtto.usuario_id).first()
+                nombres_usuarios[mtto.usuario_id] = usr.nombre_completo if usr else f"Técnico ID: {mtto.usuario_id}"
+            
+            nombre_tecnico = nombres_usuarios[mtto.usuario_id]
+            conteo[nombre_tecnico] += 1
+            
     return conteo
