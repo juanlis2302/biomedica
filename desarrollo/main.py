@@ -128,7 +128,22 @@ def crear_sede(datos: schemas.SedeCreate, db: Session = Depends(get_db)):
 # --- EQUIPOS (Rutas estáticas PRIMERO para evitar conflictos con {equipo_id}) ---
 @app.get("/equipos/plantilla/descargar", tags=["Inventario"])
 def descargar_plantilla():
-    return {"mensaje": "Plantilla lista"}
+    # Creamos las columnas exactas que se necesitan para la carga masiva
+    columnas = [
+        "nombre_equipo", "marca", "modelo", "serie", "activo_fijo",
+        "ubicacion_interna", "registro_sanitario", "riesgo", "adquisicion",
+        "costo_canon", "proveedor", "tipo_alquiler", "periodicidad_mtto", "sede_id"
+    ]
+    df = pd.DataFrame(columns=columnas)
+    
+    # Generamos el Excel en memoria
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Plantilla_Carga')
+    output.seek(0)
+    
+    headers = {'Content-Disposition': 'attachment; filename="plantilla_equipos.xlsx"'}
+    return StreamingResponse(output, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers=headers)
 
 @app.get("/equipos/exportar/", tags=["Inventario"])
 def exportar_inventario(empresa_id: Optional[int] = None, sede_id: Optional[int] = None, db: Session = Depends(get_db)):
@@ -140,30 +155,42 @@ def exportar_inventario(empresa_id: Optional[int] = None, sede_id: Optional[int]
     
     equipos = query.all()
     
+    # Agregamos TODOS los campos definidos en tu modelo Equipo
     data = []
     for eq in equipos:
         data.append({
             "ID": eq.id,
+            "Sede ID": eq.sede_id,
             "Nombre Equipo": eq.nombre_equipo,
             "Marca": eq.marca,
             "Modelo": eq.modelo,
             "Serie": eq.serie,
             "Activo Fijo": eq.activo_fijo,
             "Ubicación Interna": eq.ubicacion_interna,
-            "Riesgo": eq.riesgo,
+            "Registro INVIMA": eq.registro_sanitario,
+            "Clasificación Riesgo": eq.riesgo,
             "Adquisición": eq.adquisicion,
+            "Proveedor": eq.proveedor,
             "Costo / Canon": eq.costo_canon,
-            "Periodicidad Mtto": eq.periodicidad_mtto
+            "Tipo Alquiler": eq.tipo_alquiler,
+            "Esquema Facturación": eq.esquema_facturacion,
+            "Fecha Inicio Alquiler": eq.fecha_inicio_alquiler.strftime("%Y-%m-%d") if eq.fecha_inicio_alquiler else "N/A",
+            "Fecha Fin Alquiler": eq.fecha_fin_alquiler.strftime("%Y-%m-%d") if eq.fecha_fin_alquiler else "N/A",
+            "Periodicidad Mtto": eq.periodicidad_mtto,
+            "Último Mtto": eq.ultimo_mtto.strftime("%Y-%m-%d") if eq.ultimo_mtto else "N/A",
+            "Próximo Mtto": eq.proximo_mtto.strftime("%Y-%m-%d") if eq.proximo_mtto else "N/A",
+            "Requiere Calibración": "Sí" if eq.calibracion else "No",
+            "Última Calibración": eq.ultima_calibracion.strftime("%Y-%m-%d") if eq.ultima_calibracion else "N/A"
         })
     
     df = pd.DataFrame(data)
     
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Inventario')
+        df.to_excel(writer, index=False, sheet_name='Inventario_Completo')
     output.seek(0)
     
-    headers = {'Content-Disposition': 'attachment; filename="inventario_biomedico.xlsx"'}
+    headers = {'Content-Disposition': 'attachment; filename="inventario_completo.xlsx"'}
     return StreamingResponse(output, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers=headers)
 
 @app.get("/equipos/", tags=["Inventario"])

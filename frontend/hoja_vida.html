@@ -27,7 +27,8 @@
         @media print {
             body { background: white; padding: 0; }
             .container { box-shadow: none; padding: 0; }
-            .nav-volver, .btn-guardar, input[type="file"], button { display: none !important; }
+            /* AQUÍ ESTÁ LA MAGIA: Ocultamos los botones y el div con id "seccion-traslados" */
+            .nav-volver, .btn-guardar, input[type="file"], button, #seccion-traslados { display: none !important; }
             input, select { border: none; background: transparent; padding: 0; font-weight: bold; }
         }
     </style>
@@ -131,13 +132,16 @@
             <tbody id="bodyMantenimientos"><tr><td colspan="6" style="text-align:center;">Cargando...</td></tr></tbody>
         </table>
 
-        <h3>Historial de Traslados</h3>
-        <table>
-            <thead>
-                <tr><th>Fecha</th><th>Origen</th><th>Destino</th><th>Motivo</th></tr>
-            </thead>
-            <tbody id="bodyTraslados"><tr><td colspan="4" style="text-align:center;">Cargando...</td></tr></tbody>
-        </table>
+        <!-- Envolvemos la sección de traslados en este div para ocultarlo al imprimir -->
+        <div id="seccion-traslados">
+            <h3>Historial de Traslados</h3>
+            <table>
+                <thead>
+                    <tr><th>Fecha</th><th>Origen</th><th>Destino</th><th>Motivo</th></tr>
+                </thead>
+                <tbody id="bodyTraslados"><tr><td colspan="4" style="text-align:center;">Cargando...</td></tr></tbody>
+            </table>
+        </div>
     </div>
 
     <script>
@@ -235,10 +239,44 @@
         function descargarReporteIndividualDecode(encodedData) {
             const m = JSON.parse(decodeURIComponent(encodedData));
             const win = window.open('', '_blank', 'width=800,height=600');
-            const contenido = "<html><head><title>Reporte</title><style>body{font-family:Arial;padding:20px;}h2{color:#003366;border-bottom:2px solid #003366;}</style></head><body><h2>Reporte Técnico</h2><p><strong>Fecha:</strong> " + m.fecha_registro + "</p><p><strong>Tipo:</strong> " + m.tipo_servicio + "</p><p><strong>Modalidad:</strong> " + m.modalidad + "</p><p><strong>Trabajo:</strong> " + m.descripcion_trabajo + "</p><p><strong>Costo:</strong> $" + (m.costo || 0).toLocaleString() + "</p><" + "/body><" + "/html>";
+            
+            const imgFirma = m.firma_tecnico 
+                ? '<img src="' + m.firma_tecnico + '" alt="Firma del Técnico" style="max-width: 250px; border: 1px solid #ccc; padding: 5px;"/>' 
+                : '<p><em>Sin firma registrada</em></p>';
+
+            const contenido = `
+                <html>
+                    <head>
+                        <title>Reporte Técnico</title>
+                        <style>
+                            body { font-family: Arial; padding: 30px; color: #333; }
+                            h2 { color: #003366; border-bottom: 2px solid #003366; padding-bottom: 5px; }
+                            .info { margin-bottom: 10px; font-size: 14px; }
+                            .firma-box { margin-top: 30px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>Reporte de Mantenimiento - BioMant IA</h2>
+                        <p class="info"><strong>Fecha de Registro:</strong> ${m.fecha_registro}</p>
+                        <p class="info"><strong>Tipo de Servicio:</strong> ${m.tipo_servicio}</p>
+                        <p class="info"><strong>Modalidad:</strong> ${m.modalidad}</p>
+                        <p class="info"><strong>Descripción del Trabajo:</strong> ${m.descripcion_trabajo}</p>
+                        <p class="info"><strong>Costo:</strong> $${(m.costo || 0).toLocaleString()}</p>
+                        
+                        <div class="firma-box">
+                            <p><strong>Firma del Técnico:</strong></p>
+                            ${imgFirma}
+                        </div>
+                        
+                        <script>
+                            window.onload = function() { window.print(); }
+                        <\/script>
+                    </body>
+                </html>
+            `;
+            
             win.document.write(contenido);
             win.document.close();
-            win.print();
         }
 
         async function cargarDocumentos() {
