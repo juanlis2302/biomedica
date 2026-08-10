@@ -11,7 +11,24 @@ import bcrypt
 import models
 import schemas
 from database import engine, get_db
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
+app = FastAPI()
+
+# 1. Definir la ruta absoluta o relativa hacia tu carpeta frontend
+# (Asumiendo que main.py está en 'desarrollo' y 'frontend' está al mismo nivel en la raíz)
+frontend_path = os.path.join(os.path.dirname(__file__), "../frontend")
+
+# 2. Montar los archivos estáticos (HTML, CSS, JS)
+app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
+# 3. Ruta principal para que al entrar a la URL cargue tu index.html
+@app.get("/")
+def leer_index():
+    return FileResponse(os.path.join(frontend_path, "index.html"))
 # --- SEGURIDAD CONTRASEÑAS ---
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
