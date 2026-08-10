@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>BioMant IA - Registro de Mantenimiento</title>
+    <!-- Librerías por CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f6f9; padding: 20px; color: #333; margin: 0; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        h2 { color: #003366; border-bottom: 2px solid #003366; padding-bottom: 8px; margin-top: 0; }
+        form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; background: #f8f9fa; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        input, select, textarea { padding: 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; }
+        canvas { border: 1px solid #ccc; width: 100%; height: 150px; background: #fff; border-radius: 4px; }
+        button { padding: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 14px; border: none; color: white; }
+        .btn-submit { background: #28a745; grid-column: span 1; }
+        .btn-pdf { background: #007bff; grid-column: span 1; }
+        .btn-clear { background: #6c757d; grid-column: span 2; margin-top: -5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="margin-bottom: 15px;">
+            <a id="linkVolver" href="index.html" style="color: #003366; text-decoration: none; font-weight: bold;">← Volver al Expediente</a>
+        </div>
+
+        <h2>Registro de Reporte de Mantenimiento</h2>
+        <div id="infoEquipo" style="background: #e2e8f0; padding: 10px; border-radius: 6px; font-weight: bold; color: #003366; margin-bottom: 15px;">Cargando equipo...</div>
+
+        <form id="formReporte" onsubmit="registrarMantenimiento(event)">
+            <div class="form-group">
+                <label>Tipo de Servicio:</label>
+                <select id="tipo_servicio">
+                    <option value="Preventivo">Preventivo</option>
+                    <option value="Correctivo">Correctivo</option>
+                    <option value="Calibración">Calibración</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Modalidad:</label>
+                <select id="modalidad">
+                    <option value="Interno">Interno</option>
+                    <option value="Externo">Externo</option>
+                </select>
+            </div>
+
+            <div class="form-group"><label>Consecutivo Externo:</label><input type="text" id="consecutivo"></div>
+            <div class="form-group"><label>Proveedor:</label><input type="text" id="proveedor"></div>
+            <div class="form-group"><label>Costo ($):</label><input type="number" id="costo" value="0"></div>
+
+            <div class="form-group" style="grid-column: span 2;">
+                <label>Descripción del Trabajo:</label>
+                <textarea id="descripcion" rows="3" required></textarea>
+            </div>
+
+            <div class="form-group" style="grid-column: span 2;">
+                <label>Firma del Técnico:</label>
+                <canvas id="signature-pad"></canvas>
+            </div>
+            <button type="button" class="btn-clear" onclick="signaturePad.clear()">Limpiar Firma</button>
+            
+            <button type="submit" class="btn-submit">Guardar Reporte</button>
+            <button type="button" class="btn-pdf" onclick="descargarPDF()">📥 Descargar PDF</button>
+        </form>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        const urlParams = new URLSearchParams(window.location.search);
+        const equipoId = urlParams.get('equipo_id');
+        let signaturePad;
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            if (!equipoId) { alert("No se especificó un equipo."); window.location.href = "index.html"; return; }
+            document.getElementById("linkVolver").href = `hoja_vida.html?equipo_id=${equipoId}`;
+
+            // Inicializar el pad de firmas
+            const canvas = document.getElementById('signature-pad');
+            signaturePad = new SignaturePad(canvas);
+
+            try {
+                const res = await fetch(`${API_URL}/equipos/${equipoId}`);
+                if (res.ok) {
+                    const eq = await res.json();
+                    document.getElementById("infoEquipo").innerText = `Equipo: ${eq.nombre_equipo} | Serie: ${eq.serie}`;
+                }
+            } catch (e) { console.error(e); }
+        });
+
+        async function registrarMantenimiento(event) {
+            event.preventDefault();
+            
+            const usuarioJSON = sessionStorage.getItem("usuarioLogueado");
+            if (!usuarioJSON) {
+                alert("Debe iniciar sesión para registrar un mantenimiento.");
+                return;
+            }
+            const usuario = JSON.parse(usuarioJSON);
+
+            // Validar que se haya firmado
+            if (signaturePad.isEmpty()) {
+                alert("Por favor, registre la firma del técnico antes de guardar.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("equipo_id", equipoId);
+            formData.append("tipo_servicio", document.getElementById("tipo_servicio").value);
+            formData.append("modalidad", document.getElementById("modalidad").value);
+            formData.append("descripcion_trabajo", document.getElementById("descripcion").value);
+            formData.append("costo", document.getElementById("costo").value);
+            
+            // Extraemos la firma del canvas en formato Base64 de forma correcta
+            formData.append("firma_tecnico", signaturePad.toDataURL()); 
+            formData.append("usuario_id", usuario.id);
+
+            try {
+                const res = await fetch(`${API_URL}/mantenimientos/`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (res.ok) {
+                    alert("Mantenimiento registrado correctamente por: " + usuario.nombre_completo);
+                    location.reload();
+                } else {
+                    const errorData = await res.json();
+                    alert("Error al registrar el mantenimiento: " + (errorData.detail || "Verifica los datos"));
+                }
+            } catch (error) {
+                console.error("Error de red:", error);
+                alert("No se pudo conectar con el servidor.");
+            }
+        }
+
+        function descargarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Reporte de Mantenimiento - BioMant IA", 14, 20);
+            doc.text("Servicio: " + document.getElementById("tipo_servicio").value, 14, 30);
+            doc.text("Modalidad: " + document.getElementById("modalidad").value, 14, 40);
+            doc.text("Descripción: " + document.getElementById("descripcion").value, 14, 50);
+            
+            if (!signaturePad.isEmpty()) {
+                doc.addImage(signaturePad.toDataURL(), "PNG", 14, 65, 60, 25);
+            }
+            doc.save("Reporte_Mantenimiento.pdf");
+        }
+    </script>
+</body>
+</html>

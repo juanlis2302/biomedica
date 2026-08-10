@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>BioMant IA - Gestión de Empresas</title>
+    <style>
+        :root { --primary: #003366; --bg-color: #f4f6f9; --text-color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-color); }
+        header { background-color: var(--primary); color: white; padding: 20px; text-align: center; }
+        .container { max-width: 1100px; margin: 25px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .user-info { background: #e9ecef; padding: 15px; border-radius: 6px; margin-bottom: 25px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .btn-logout { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; }
+        th { background-color: var(--primary); color: white; }
+        .form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
+        input { padding: 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>BioMant IA</h1>
+        <p>Panel de Súper Administración - Gestión de Empresas</p>
+    </header>
+    
+    <div class="container">
+        <div class="user-info">
+            <span id="welcomeUser">Súper Administrador</span>
+            <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+
+        <div style="background: #fdfdfd; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px;">
+            <h3 style="margin-top:0; color:var(--primary);">Registrar Nueva Empresa</h3>
+            <form style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;" onsubmit="event.preventDefault(); crearEmpresa();">
+                <div class="form-group"><label>Nombre Empresa:</label><input type="text" id="nombre_empresa" required></div>
+                <div class="form-group"><label>NIT:</label><input type="text" id="nit"></div>
+                <div class="form-group"><label>Dirección:</label><input type="text" id="direccion"></div>
+                <div class="form-group"><label>Teléfono:</label><input type="text" id="telefono"></div>
+                <button type="submit" style="grid-column: span 2; background:#28a745; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; cursor:pointer;">Guardar Empresa</button>
+            </form>
+        </div>
+
+        <h3 style="color: var(--primary);">Empresas Registradas en el SaaS</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>NIT</th>
+                    <th>Dirección</th>
+                    <th>Teléfono</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaEmpresas">
+                <tr><td colspan="7" style="text-align:center;">Cargando empresas...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+
+        window.addEventListener("DOMContentLoaded", () => {
+            const sesion = sessionStorage.getItem("usuarioLogueado");
+            if (!sesion) {
+                window.location.href = "index.html";
+                return;
+            }
+            const usuario = JSON.parse(sesion);
+            document.getElementById("welcomeUser").innerText = `Súper Admin: ${usuario.nombre_completo}`;
+            cargarEmpresas();
+        });
+
+        async function cargarEmpresas() {
+            try {
+                const res = await fetch(`${API_URL}/empresas/`);
+                const empresas = await res.json();
+                const tbody = document.getElementById("tablaEmpresas");
+                
+                if (!empresas || empresas.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No hay empresas registradas.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = empresas.map(emp => `
+                    <tr>
+                        <td>${emp.id}</td>
+                        <td><strong>${emp.nombre_empresa}</strong></td>
+                        <td>${emp.nit || 'N/A'}</td>
+                        <td>${emp.direccion || 'N/A'}</td>
+                        <td>${emp.telefono || 'N/A'}</td>
+                        <td><span style="color: ${emp.activo ? 'green' : 'red'}; font-weight: bold;">${emp.activo ? 'Activa' : 'Inactiva'}</span></td>
+                        <td>
+                            <button onclick="cambiarEstadoEmpresa(${emp.id})" style="background: ${emp.activo ? '#dc3545' : '#28a745'}; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                ${emp.activo ? 'Inhabilitar' : 'Activar'}
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error("Error al cargar empresas:", e);
+            }
+        }
+
+        async function cambiarEstadoEmpresa(id) {
+            try {
+                const res = await fetch(`${API_URL}/empresas/${id}/estado/`, {
+                    method: "PATCH"
+                });
+
+                if (res.ok) {
+                    cargarEmpresas(); 
+                } else {
+                    alert("No se pudo cambiar el estado de la empresa.");
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        async function crearEmpresa() {
+            const body = {
+                nombre_empresa: document.getElementById("nombre_empresa").value,
+                nit: document.getElementById("nit").value,
+                direccion: document.getElementById("direccion").value,
+                telefono: document.getElementById("telefono").value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/empresas/`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+
+                if (res.ok) {
+                    alert("Empresa creada con éxito");
+                    document.getElementById("nombre_empresa").value = "";
+                    document.getElementById("nit").value = "";
+                    document.getElementById("direccion").value = "";
+                    document.getElementById("telefono").value = "";
+                    cargarEmpresas();
+                } else {
+                    alert("Error al registrar la empresa.");
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        function cerrarSesion() {
+            sessionStorage.clear();
+            window.location.href = "index.html";
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>BioMant IA - Gestión Biomédica</title>
+    <style>
+        :root { --primary: #003366; --bg-color: #f4f6f9; --text-color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-color); }
+        header { background-color: var(--primary); color: white; padding: 20px; text-align: center; }
+        .container { max-width: 1400px; margin: 25px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .section-box { display: none; } .active-section { display: block; }
+        #seccionLogin { max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .form-group { display: flex; flex-direction: column; margin-bottom: 15px; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        input, select { padding: 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .user-info { background: #e9ecef; padding: 15px; border-radius: 6px; margin-bottom: 25px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .btn-logout { background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .menu-navegacion { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .menu-navegacion a { background: var(--primary); color: white; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 14px; }
+        .menu-navegacion a:hover { background: #002244; }
+        .card-seccion { background: #fdfdfd; border: 1px solid #e2e8f0; padding: 20px; border-radius: 6px; margin-bottom: 25px; }
+        
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .metric-card { background: #f8f9fa; border-left: 5px solid var(--primary); padding: 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .metric-card h4 { margin: 0 0 10px 0; color: #555; font-size: 14px; }
+        .metric-card p { margin: 0; font-size: 24px; font-weight: bold; color: var(--primary); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 12px; }
+        th { background-color: var(--primary); color: white; }
+        .btn-accion { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; font-size: 11px; font-weight: bold; margin-right: 3px; }
+        .header-inventario { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; flex-wrap: wrap; gap: 15px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>BioMant IA</h1>
+        <p>Sistema SaaS de Gestión Biomédica</p>
+    </header>
+    
+    <div class="container">
+        
+        <!-- SECCIÓN DE LOGIN -->
+        <div id="seccionLogin" class="section-box active-section">
+            <h2 style="color: var(--primary); margin-top:0;">Iniciar Sesión</h2>
+            <form onsubmit="event.preventDefault(); iniciarSesion();">
+                <div class="form-group"><label>Correo:</label><input type="email" id="loginEmail" required></div>
+                <div class="form-group"><label>Contraseña:</label><input type="password" id="loginPassword" required></div>
+                <button type="submit" style="width:100%; padding:11px; background:var(--primary); color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Entrar</button>
+            </form>
+        </div>
+
+        <!-- SECCIÓN PRINCIPAL DE LA APLICACIÓN -->
+        <div id="seccionApp" class="section-box">
+            <div class="user-info">
+                <span id="welcomeUser">Usuario: Conectado</span>
+                <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+            </div>
+
+            <!-- Menú de Navegación por Roles -->
+            <div id="menuNavegacion" class="menu-navegacion" style="display:none;">
+                <a href="#" onclick="mostrarVista('dashboard')">📊 Dashboard General</a>
+                <a href="#" onclick="mostrarVista('operativo')">🛠️ Gestión de Inventario</a>
+            </div>
+
+            <!-- VISTA 1: DASHBOARD DE LA EMPRESA -->
+            <div id="vistaDashboard" class="section-box">
+                <h2 style="color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 10px;">Panel de Control y Analítica Financiera</h2>
+                
+                <div class="dashboard-grid">
+                    <div class="metric-card">
+                        <h4>Mantenimientos Programados (Mes)</h4>
+                        <p id="statMttos">Cargando...</p>
+                    </div>
+                    <div class="metric-card" style="border-left-color: #28a745;">
+                        <h4>Valor Total Activos (Compra)</h4>
+                        <p id="statCompra">Cargando...</p>
+                    </div>
+                    <div class="metric-card" style="border-left-color: #ffc107;">
+                        <h4>Costo Total Alquiler (Mensual)</h4>
+                        <p id="statAlquiler">Cargando...</p>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Total de Equipos</h4>
+                        <p id="statEquipos">Cargando...</p>
+                    </div>
+                </div>
+
+                <!-- Desglose por Proveedor -->
+                <div class="card-seccion">
+                    <h3 style="color: var(--primary); margin-top:0;">Desglose de Alquiler por Proveedor</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Proveedor</th>
+                                <th>Costo Mensual Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyProveedores">
+                            <tr><td colspan="2" style="text-align:center;">Cargando proveedores...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Reportes por Técnico -->
+                <div class="card-seccion">
+                    <h3 style="color: var(--primary); margin-top:0;">Conteo de Reportes por Técnico</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID del Técnico / Usuario</th>
+                                <th>Total de Reportes Realizados</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bodyTecnicos">
+                            <tr><td colspan="2" style="text-align:center;">Cargando reporte de técnicos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VISTA 2: SECCIÓN OPERATIVA -->
+            <div id="vistaOperativa" class="section-box">
+                <div id="panelAdminTools" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="card-seccion" id="cajaCrearSede">
+                        <h3 style="margin-top:0; color:var(--primary);">Crear Sede</h3>
+                        <form style="display: flex; gap: 10px; flex-wrap: wrap;" onsubmit="event.preventDefault(); crearSede();">
+                            <input type="text" id="nombre_sede" required placeholder="Nombre Sede" style="flex:1;">
+                            <input type="text" id="direccion" required placeholder="Dirección" style="flex:1;">
+                            <input type="text" id="ciudad" required placeholder="Ciudad" style="flex:1;">
+                            <button type="submit" style="background:#28a745; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">Guardar Sede</button>
+                        </form>
+                    </div>
+
+                    <div class="card-seccion">
+                        <h3 style="margin-top:0; color:var(--primary);">Carga Masiva (Excel)</h3>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <button onclick="window.location.href=`${API_URL}/equipos/plantilla/descargar`" style="background:#17a2b8; color:white; border:none; padding:9px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">📥 Descargar Plantilla Excel</button>
+                            <form style="display: flex; gap: 10px; align-items: center;" onsubmit="event.preventDefault(); importarExcel();">
+                                <input type="file" id="archivoExcel" accept=".xlsx, .xls" required style="flex:1; font-size:11px;">
+                                <button type="submit" style="background:#28a745; color:white; border:none; padding:9px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">📤 Cargar</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="panelCrearEquipo" class="card-seccion">
+                    <h3 style="margin-top:0; color:var(--primary);">Registro Individual de Equipo</h3>
+                    <form style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;" onsubmit="event.preventDefault(); crearEquipoIndividual();">
+                        <div class="form-group" style="margin:0; flex:1;"><label>Nombre:</label><input type="text" id="eq_nombre" required></div>
+                        <div class="form-group" style="margin:0; flex:1;"><label>Marca:</label><input type="text" id="eq_marca" required></div>
+                        <div class="form-group" style="margin:0; flex:1;"><label>Modelo:</label><input type="text" id="eq_modelo" required></div>
+                        <div class="form-group" style="margin:0; flex:1;"><label>Serie:</label><input type="text" id="eq_serie" required></div>
+                        <div class="form-group" style="margin:0; flex:1;">
+                            <label>Sede Asignada:</label>
+                            <select id="eq_sede" required style="width:100%;"><option value="">Cargando sedes...</option></select>
+                        </div>
+                        <button type="submit" style="background:#003366; color:white; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer; height:37px;">Registrar Equipo</button>
+                    </form>
+                </div>
+
+                <div class="header-inventario">
+                    <h2 style="margin:0; border:none; color:var(--primary);">Inventario Biomédico</h2>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <select id="filtroSede" onchange="cargarEquipos()" style="padding: 8px;">
+                            <option value="">Todas las Sedes de mi Empresa</option>
+                        </select>
+                        <button onclick="exportarInventario()" style="background:#28a745; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">⬇️ Descargar Excel Filtrado</button>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Serie</th>
+                            <th>Sede / Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaEquipos">
+                        <tr><td colspan="7" style="text-align:center;">Cargando inventario...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        let sedesMap = {}; 
+
+        async function iniciarSesion() {
+            const email = document.getElementById("loginEmail").value;
+            const password = document.getElementById("loginPassword").value;
+            
+            try {
+                const res = await fetch(`${API_URL}/login`, { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify({ email, password }) 
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) { 
+                    sessionStorage.setItem("usuarioLogueado", JSON.stringify(data.usuario)); 
+                    location.reload(); 
+                } else { 
+                    alert(data.detail || "Credenciales incorrectas"); 
+                }
+            } catch (error) {
+                console.error("Error de red:", error);
+                alert("No se pudo conectar con el servidor.");
+            }
+        }
+
+        function mostrarVista(vista) {
+            const vDashboard = document.getElementById("vistaDashboard");
+            const vOperativa = document.getElementById("vistaOperativa");
+
+            if (vista === 'dashboard') {
+                vDashboard.classList.add("active-section");
+                vOperativa.classList.remove("active-section");
+                cargarMetricasDashboard();
+                cargarMetricasTecnicos();
+            } else {
+                vDashboard.classList.remove("active-section");
+                vOperativa.classList.add("active-section");
+                cargarSedesEInventario();
+            }
+        }
+
+        async function cargarMetricasDashboard() {
+            const usuarioJSON = sessionStorage.getItem("usuarioLogueado");
+            if (!usuarioJSON) return;
+            const usuario = JSON.parse(usuarioJSON);
+
+            try {
+                const res = await fetch(`${API_URL}/dashboard/metricas/?empresa_id=${usuario.empresa_id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById("statMttos").innerText = data.mantenimientos_mes;
+                    document.getElementById("statCompra").innerText = `$${data.costo_total_compra.toLocaleString()}`;
+                    document.getElementById("statAlquiler").innerText = `$${data.costo_total_alquiler.toLocaleString()}`;
+                    document.getElementById("statEquipos").innerText = data.total_equipos;
+                    
+                    const tbodyProv = document.getElementById("bodyProveedores");
+                    const entradas = Object.entries(data.desglose_alquiler_proveedor);
+                    
+                    if (entradas.length === 0) {
+                        tbodyProv.innerHTML = `<tr><td colspan="2" style="text-align:center;">No hay equipos alquilados activos registrados.</td></tr>`;
+                    } else {
+                        tbodyProv.innerHTML = entradas.map(([prov, costo]) => `
+                            <tr>
+                                <td><strong>${prov}</strong></td>
+                                <td>$${costo.toLocaleString()}</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                console.error("Error al cargar métricas del dashboard:", e);
+            }
+        }
+
+        async function cargarMetricasTecnicos() {
+            const usuarioJSON = sessionStorage.getItem("usuarioLogueado");
+            if (!usuarioJSON) return;
+            const usuario = JSON.parse(usuarioJSON);
+
+            try {
+                const res = await fetch(`${API_URL}/dashboard/metricas/tecnicos/?empresa_id=${usuario.empresa_id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const tbodyTec = document.getElementById("bodyTecnicos");
+                    const entradas = Object.entries(data);
+
+                    if (entradas.length === 0) {
+                        tbodyTec.innerHTML = `<tr><td colspan="2" style="text-align:center;">No hay reportes registrados por técnicos.</td></tr>`;
+                    } else {
+                        tbodyTec.innerHTML = entradas.map(([idTecnico, total]) => `
+                            <tr>
+                                <td><strong>Técnico ID: ${idTecnico}</strong></td>
+                                <td>${total} reportes</td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                console.error("Error al cargar reportes de técnicos:", e);
+            }
+        }
+
+        async function cargarSedesEInventario() {
+            const usuarioJSON = sessionStorage.getItem("usuarioLogueado");
+            if (!usuarioJSON) return;
+            
+            const usuario = JSON.parse(usuarioJSON);
+            document.getElementById("welcomeUser").innerText = `Usuario: ${usuario.nombre_completo} (${usuario.rol})`;
+
+            try {
+                const resSedes = await fetch(`${API_URL}/sedes/?empresa_id=${usuario.empresa_id}`);
+                const sedes = await resSedes.json();
+                
+                const selectAsignar = document.getElementById("eq_sede");
+                const selectFiltro = document.getElementById("filtroSede");
+                
+                selectAsignar.innerHTML = '';
+                selectFiltro.innerHTML = '<option value="">Todas las Sedes de mi Empresa</option>';
+                
+                if (sedes.length === 0) {
+                    selectAsignar.innerHTML = '<option value="">Debe registrar una sede primero</option>';
+                } else {
+                    sedes.forEach(s => {
+                        sedesMap[s.id] = s.nombre_sede;
+                        selectAsignar.innerHTML += `<option value="${s.id}">${s.nombre_sede}</option>`;
+                        selectFiltro.innerHTML += `<option value="${s.id}">${s.nombre_sede}</option>`;
+                    });
+                }
+                
+                cargarEquipos();
+            } catch (e) {
+                console.error("Error al cargar sedes:", e);
+            }
+        }
+
+        async function cargarEquipos() {
+            const usuario = JSON.parse(sessionStorage.getItem("usuarioLogueado"));
+            if (!usuario) return;
+
+            const sedeIdFiltro = document.getElementById("filtroSede").value;
+            let urlEquipos = `${API_URL}/equipos/`;
+            
+            if (sedeIdFiltro) {
+                urlEquipos += `?sede_id=${sedeIdFiltro}`;
+            } else if (usuario.empresa_id) {
+                urlEquipos += `?empresa_id=${usuario.empresa_id}`;
+            }
+
+            try {
+                const res = await fetch(urlEquipos);
+                const equipos = await res.json();
+                const tbody = document.getElementById("tablaEquipos");
+                
+                if (!equipos || equipos.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No hay equipos registrados.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = equipos.map(eq => `
+                    <tr>
+                        <td><strong>${eq.id}</strong></td>
+                        <td>${eq.nombre_equipo}</td>
+                        <td>${eq.marca}</td>
+                        <td>${eq.modelo}</td>
+                        <td>${eq.serie}</td>
+                        <td>${sedesMap[eq.sede_id] || 'N/A'} ${eq.adquisicion === 'Devuelto' ? '<span style="color:red; font-weight:bold;">(Devuelto)</span>' : ''}</td>
+                        <td>
+                            <button onclick="location.href='hoja_vida.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#17a2b8;">Hoja Vida</button>
+                            <button onclick="location.href='traslados.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#ffc107; color:black;">Traslado</button>
+                            <button onclick="location.href='mantenimientos.html?equipo_id=${eq.id}'" class="btn-accion" style="background:#28a745;">Reporte</button>
+                            ${eq.adquisicion === 'Alquilado' ? `<button onclick="devolverEquipo(${eq.id})" class="btn-accion" style="background:#6c757d;">Devolver</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error("Error al cargar equipos:", error);
+            }
+        }
+
+        async function devolverEquipo(id) {
+            if (confirm("¿Estás seguro de finalizar el alquiler y registrar la devolución de este equipo? El cobro mensual cesará.")) {
+                try {
+                    const res = await fetch(`${API_URL}/equipos/${id}/devolver/`, { method: "POST" });
+                    if (res.ok) {
+                        alert("Equipo devuelto con éxito.");
+                        cargarEquipos();
+                    } else {
+                        alert("Error al procesar la devolución.");
+                    }
+                } catch (e) {
+                    alert("Error de conexión con el servidor.");
+                }
+            }
+        }
+
+        async function crearSede() {
+            const usuario = JSON.parse(sessionStorage.getItem("usuarioLogueado"));
+            const body = { 
+                nombre_sede: document.getElementById("nombre_sede").value, 
+                direccion: document.getElementById("direccion").value, 
+                ciudad: document.getElementById("ciudad").value, 
+                empresa_id: usuario.empresa_id 
+            };
+            
+            try {
+                const res = await fetch(`${API_URL}/sedes/`, { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify(body) 
+                });
+
+                if (res.ok) { 
+                    alert("¡Sede creada con éxito!"); 
+                    document.getElementById("nombre_sede").value = "";
+                    document.getElementById("direccion").value = "";
+                    document.getElementById("ciudad").value = "";
+                    cargarSedesEInventario(); 
+                } else {
+                    const err = await res.json();
+                    alert("Error al crear la sede: " + (err.detail || "Verifica los datos"));
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        async function crearEquipoIndividual() {
+            const nuevo = {
+                nombre_equipo: document.getElementById("eq_nombre").value,
+                marca: document.getElementById("eq_marca").value,
+                modelo: document.getElementById("eq_modelo").value,
+                serie: document.getElementById("eq_serie").value,
+                sede_id: parseInt(document.getElementById("eq_sede").value),
+                activo_fijo: "Por definir",
+                ubicacion_interna: "Por asignar",
+                riesgo: "I"
+            };
+            
+            try {
+                const res = await fetch(`${API_URL}/equipos/`, { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify(nuevo) 
+                });
+                
+                if (res.ok) { 
+                    alert("¡Equipo registrado con éxito!"); 
+                    document.getElementById("eq_nombre").value = "";
+                    document.getElementById("eq_marca").value = "";
+                    document.getElementById("eq_modelo").value = "";
+                    document.getElementById("eq_serie").value = "";
+                    cargarEquipos(); 
+                } else {
+                    alert("Error al registrar el equipo.");
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        async function importarExcel() {
+            const archivoInput = document.getElementById("archivoExcel");
+            if (!archivoInput.files[0]) return alert("Por favor seleccione un archivo Excel.");
+            
+            const formData = new FormData();
+            formData.append("archivo", archivoInput.files[0]);
+            
+            try {
+                const res = await fetch(`${API_URL}/equipos/importar/`, { method: "POST", body: formData });
+                if (res.ok) { 
+                    alert("¡Inventario cargado exitosamente!"); 
+                    archivoInput.value = "";
+                    cargarEquipos(); 
+                } else {
+                    alert("Error al importar el archivo Excel.");
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
+        }
+
+        function exportarInventario() {
+            const usuario = JSON.parse(sessionStorage.getItem("usuarioLogueado"));
+            const sedeIdFiltro = document.getElementById("filtroSede").value;
+            
+            let url = `${API_URL}/equipos/exportar/?`;
+            if (sedeIdFiltro) {
+                url += `sede_id=${sedeIdFiltro}`;
+            } else if (usuario.empresa_id) {
+                url += `empresa_id=${usuario.empresa_id}`;
+            }
+            
+            window.location.href = url;
+        }
+
+        function cerrarSesion() { 
+            sessionStorage.clear(); 
+            localStorage.clear();
+            location.reload(); 
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            const sesion = sessionStorage.getItem("usuarioLogueado");
+            if (sesion) {
+                document.getElementById('seccionLogin').classList.remove('active-section');
+                document.getElementById('seccionApp').classList.add('active-section');
+                
+                const usuario = JSON.parse(sesion);
+                
+                if (usuario.rol === "super_admin") {
+                    window.location.href = "empresas.html";
+                } else {
+                    document.getElementById("menuNavegacion").style.display = "flex";
+                    mostrarVista('dashboard'); 
+                }
+            } else {
+                document.getElementById('seccionLogin').classList.add('active-section');
+                document.getElementById('seccionApp').classList.remove('active-section');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>BioMant IA - Hoja de Vida del Equipo</title>
+    <style>
+        :root { --primary: #003366; --bg-color: #f4f6f9; --text-color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-color); margin: 0; color: var(--text-color); padding: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .nav-volver { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .nav-volver a { color: var(--primary); text-decoration: none; font-weight: bold; }
+        .btn-descargar { background: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        h2, h3 { color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 6px; }
+        .grid-formulario { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; background: #f8f9fa; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 30px; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        input, select { padding: 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; }
+        .btn-guardar { background: #28a745; color: white; border: none; padding: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; grid-column: span 3; font-size: 15px; margin-top: 10px; }
+        .seccion-foto { display: flex; align-items: center; gap: 20px; margin-bottom: 25px; background: #e9ecef; padding: 15px; border-radius: 6px; }
+        .seccion-foto img { width: 120px; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc; background: #fff; }
+        .seccion-documentos { background: #f8f9fa; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 25px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        th { background-color: var(--primary); color: white; }
+        .btn-accion { background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; text-decoration: none; font-size: 11px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 0; }
+            .nav-volver, .btn-guardar, input[type="file"], button { display: none !important; }
+            input, select { border: none; background: transparent; padding: 0; font-weight: bold; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-volver">
+            <a href="index.html">← Volver al Inventario General</a>
+            <button onclick="window.print()" class="btn-descargar">🖨️ Descargar / Imprimir Hoja de Vida</button>
+        </div>
+
+        <h2>Hoja de Vida de Equipo Biomédico</h2>
+
+        <div class="seccion-foto">
+            <img id="imgEquipo" src="" alt="Sin foto" onerror="this.src='https://placehold.co/120?text=Sin+Foto'">
+            <div>
+                <h3 id="tituloEquipoHeader" style="margin:0 0 10px 0; color: var(--primary); border:none;">Cargando equipo...</h3>
+                <input type="file" id="inputFoto" accept="image/*" style="margin-bottom: 5px; font-size: 12px;"><br>
+                <button type="button" onclick="subirFoto()" style="background:#17a2b8; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">Cambiar Foto</button>
+            </div>
+        </div>
+
+        <form id="formHojaVida" onsubmit="event.preventDefault(); actualizarEquipo();">
+            <div class="grid-formulario">
+                <div class="form-group"><label>Nombre del Equipo:</label><input type="text" id="nombre_equipo" required></div>
+                <div class="form-group"><label>Marca:</label><input type="text" id="marca"></div>
+                <div class="form-group"><label>Modelo:</label><input type="text" id="modelo"></div>
+                <div class="form-group"><label>Serie:</label><input type="text" id="serie"></div>
+                <div class="form-group"><label>Activo Fijo:</label><input type="text" id="activo_fijo"></div>
+                <div class="form-group"><label>Ubicación Interna:</label><input type="text" id="ubicacion_interna"></div>
+                <div class="form-group"><label>Reg. INVIMA:</label><input type="text" id="invima"></div>
+                <div class="form-group">
+                    <label>Clasificación de Riesgo:</label>
+                    <select id="riesgo">
+                        <option value="I">Clase I</option><option value="IIa">Clase IIa</option>
+                        <option value="IIb">Clase IIb</option><option value="III">Clase III</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Proveedor:</label><input type="text" id="proveedor"></div>
+
+                <div class="form-group">
+                    <label>Forma de Adquisición:</label>
+                    <select id="adquisicion" onchange="toggleCamposAlquiler()">
+                        <option value="Propio">Compra (Propio)</option>
+                        <option value="Alquilado">Alquilado</option>
+                        <option value="Devuelto">Devuelto (Finalizado)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="grupoCosto">
+                    <label id="labelCosto">Costo / Canon ($):</label>
+                    <input type="number" step="0.01" id="costo" value="0">
+                </div>
+                
+                <div class="form-group" id="grupoTipoAlquiler" style="display: none;">
+                    <label>Tipo de Alquiler:</label>
+                    <select id="tipo_alquiler">
+                        <option value="Mensual">Mensual</option>
+                        <option value="Por Días">Por Días</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Periodicidad Mantenimiento:</label>
+                    <select id="periodicidad_mtto">
+                        <option value="Semestral">Semestral</option>
+                        <option value="Anual">Anual</option>
+                        <option value="Cada 2 años">Cada 2 años</option>
+                    </select>
+                </div>
+
+                <div class="form-group"><label id="labelFecha">Fecha Inicio / Compra:</label><input type="date" id="fecha_inicio_alquiler"></div>
+                <div class="form-group"><label>Fecha Fin / Devolución:</label><input type="date" id="fecha_fin_alquiler"></div>
+                <div class="form-group"><label>Próximo Mantenimiento:</label><input type="date" id="proximo_mtto"></div>
+
+                <button type="submit" class="btn-guardar">Guardar Todos los Cambios</button>
+            </div>
+        </form>
+
+        <div class="seccion-documentos">
+            <h3 style="margin-top:0; border:none; color: var(--primary);">Manuales, Planos y Documentación Técnica</h3>
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                <input type="file" id="inputDocumento" accept=".pdf,.doc,.docx,.png,.jpg" style="font-size: 13px;">
+                <button type="button" onclick="subirDocumento()" style="background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">Subir Documento</button>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Nombre del Archivo / Documento</th><th>Acciones</th></tr>
+                </thead>
+                <tbody id="bodyDocumentos">
+                    <tr><td colspan="2" style="text-align:center;">Cargando documentos...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3 style="margin: 0; border: none;">Historial de Mantenimientos</h3>
+        <table>
+            <thead>
+                <tr><th>Fecha</th><th>Tipo Servicio</th><th>Modalidad</th><th>Descripción</th><th>Costo ($)</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="bodyMantenimientos"><tr><td colspan="6" style="text-align:center;">Cargando...</td></tr></tbody>
+        </table>
+
+        <h3>Historial de Traslados</h3>
+        <table>
+            <thead>
+                <tr><th>Fecha</th><th>Origen</th><th>Destino</th><th>Motivo</th></tr>
+            </thead>
+            <tbody id="bodyTraslados"><tr><td colspan="4" style="text-align:center;">Cargando...</td></tr></tbody>
+        </table>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        const urlParams = new URLSearchParams(window.location.search);
+        const equipoId = urlParams.get('equipo_id');
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            if (!equipoId) {
+                alert("No se especificó un equipo.");
+                window.location.href = "index.html";
+                return;
+            }
+            await cargarDatosEquipo();
+            await cargarHistoriales();
+            await cargarDocumentos();
+        });
+
+        function toggleCamposAlquiler() {
+            const val = document.getElementById("adquisicion").value;
+            document.getElementById("grupoTipoAlquiler").style.display = (val === "Alquilado") ? "flex" : "none";
+            document.getElementById("labelCosto").innerText = (val === "Alquilado") ? "Canon de Alquiler ($):" : "Costo de Adquisición ($):";
+        }
+
+        async function cargarDatosEquipo() {
+            try {
+                const res = await fetch(`${API_URL}/equipos/${equipoId}`);
+                if (res.ok) {
+                    const eq = await res.json();
+                    document.getElementById("tituloEquipoHeader").innerText = `${eq.nombre_equipo} (Serie: ${eq.serie || 'N/A'})`;
+                    document.getElementById("nombre_equipo").value = eq.nombre_equipo || "";
+                    document.getElementById("marca").value = eq.marca || "";
+                    document.getElementById("modelo").value = eq.modelo || "";
+                    document.getElementById("serie").value = eq.serie || "";
+                    document.getElementById("activo_fijo").value = eq.activo_fijo || "";
+                    document.getElementById("ubicacion_interna").value = eq.ubicacion_interna || "";
+                    document.getElementById("invima").value = eq.registro_sanitario || "";
+                    document.getElementById("riesgo").value = eq.riesgo || "I";
+                    document.getElementById("proveedor").value = eq.proveedor || "";
+                    document.getElementById("costo").value = eq.costo_canon || 0;
+                    document.getElementById("adquisicion").value = eq.adquisicion || "Propio";
+                    document.getElementById("tipo_alquiler").value = eq.tipo_alquiler || "Mensual";
+                    document.getElementById("periodicidad_mtto").value = eq.periodicidad_mtto || "Anual";
+                    
+                    if(eq.fecha_inicio_alquiler) document.getElementById("fecha_inicio_alquiler").value = eq.fecha_inicio_alquiler;
+                    if(eq.fecha_fin_alquiler) document.getElementById("fecha_fin_alquiler").value = eq.fecha_fin_alquiler;
+                    if(eq.proximo_mtto) document.getElementById("proximo_mtto").value = eq.proximo_mtto;
+                    if(eq.imagen_url) document.getElementById("imgEquipo").src = `${API_URL}/${eq.imagen_url}`;
+                    
+                    toggleCamposAlquiler();
+                }
+            } catch (e) { console.error("Error al cargar datos:", e); }
+        }
+
+        async function cargarHistoriales() {
+            try {
+                const resMtto = await fetch(`${API_URL}/mantenimientos/equipo/${equipoId}`);
+                if (resMtto.ok) {
+                    const mttos = await resMtto.json();
+                    const bodyMtto = document.getElementById("bodyMantenimientos");
+                    if (mttos.length === 0) {
+                        bodyMtto.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay mantenimientos registrados.</td></tr>`;
+                    } else {
+                        bodyMtto.innerHTML = mttos.map(m => {
+                            const datosMttoStr = encodeURIComponent(JSON.stringify(m));
+                            return `
+                                <tr>
+                                    <td>${m.fecha_registro}</td>
+                                    <td>${m.tipo_servicio}</td>
+                                    <td>${m.modalidad}</td>
+                                    <td>${m.descripcion_trabajo}</td>
+                                    <td>$${(m.costo || 0).toLocaleString()}</td>
+                                    <td><button onclick="descargarReporteIndividualDecode('${datosMttoStr}')" class="btn-accion">📄 Reporte</button></td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                const resTras = await fetch(`${API_URL}/traslados/equipo/${equipoId}`);
+                if (resTras.ok) {
+                    const traslados = await resTras.json();
+                    const bodyTras = document.getElementById("bodyTraslados");
+                    if (traslados.length === 0) {
+                        bodyTras.innerHTML = `<tr><td colspan="4" style="text-align:center;">No hay traslados registrados.</td></tr>`;
+                    } else {
+                        bodyTras.innerHTML = traslados.map(t => `<tr><td>${new Date(t.fecha_traslado).toLocaleDateString()}</td><td>${t.ubicacion_origen || 'Inicial'}</td><td>${t.ubicacion_destino}</td><td>${t.motivo}</td></tr>`).join('');
+                    }
+                }
+            } catch (e) { console.error("Error historiales:", e); }
+        }
+
+        function descargarReporteIndividualDecode(encodedData) {
+            const m = JSON.parse(decodeURIComponent(encodedData));
+            const win = window.open('', '_blank', 'width=800,height=600');
+            const contenido = "<html><head><title>Reporte</title><style>body{font-family:Arial;padding:20px;}h2{color:#003366;border-bottom:2px solid #003366;}</style></head><body><h2>Reporte Técnico</h2><p><strong>Fecha:</strong> " + m.fecha_registro + "</p><p><strong>Tipo:</strong> " + m.tipo_servicio + "</p><p><strong>Modalidad:</strong> " + m.modalidad + "</p><p><strong>Trabajo:</strong> " + m.descripcion_trabajo + "</p><p><strong>Costo:</strong> $" + (m.costo || 0).toLocaleString() + "</p><" + "/body><" + "/html>";
+            win.document.write(contenido);
+            win.document.close();
+            win.print();
+        }
+
+        async function cargarDocumentos() {
+            try {
+                const res = await fetch(`${API_URL}/documentos/equipo/${equipoId}`);
+                if (res.ok) {
+                    const docs = await res.json();
+                    const tbody = document.getElementById("bodyDocumentos");
+                    if (docs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No hay manuales o documentos subidos.</td></tr>`;
+                    } else {
+                        tbody.innerHTML = docs.map(d => `
+                            <tr>
+                                <td>${d.nombre_archivo}</td>
+                                <td>
+                                    <a href="${API_URL}/${d.url}" target="_blank" class="btn-accion" style="background:#17a2b8;">📥 Descargar</a>
+                                    <button onclick="eliminarDocumento(${d.id})" class="btn-accion" style="background:#dc3545; margin-left:5px;">🗑️ Eliminar</button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) { console.error("Error documentos:", e); }
+        }
+
+        async function subirDocumento() {
+            const input = document.getElementById("inputDocumento");
+            if (!input.files[0]) return alert("Seleccione un archivo primero.");
+            const fd = new FormData();
+            fd.append("archivo", input.files[0]);
+            const res = await fetch(`${API_URL}/equipos/${equipoId}/documento/`, { method: "POST", body: fd });
+            if (res.ok) { alert("¡Documento subido!"); input.value = ""; cargarDocumentos(); }
+            else { alert("Error al subir."); }
+        }
+
+        async function eliminarDocumento(docId) {
+            if (!confirm("¿Desea eliminar este documento?")) return;
+            const res = await fetch(`${API_URL}/documentos/${docId}`, { method: "DELETE" });
+            if (res.ok) { cargarDocumentos(); }
+        }
+
+        async function actualizarEquipo() {
+            const formData = new FormData();
+            ["nombre_equipo", "marca", "modelo", "serie", "activo_fijo", "ubicacion_interna", "invima", "riesgo", "proveedor", "costo", "adquisicion", "tipo_alquiler", "periodicidad_mtto", "proximo_mtto", "fecha_inicio_alquiler", "fecha_fin_alquiler"].forEach(id => {
+                formData.append(id, document.getElementById(id).value);
+            });
+            const res = await fetch(`${API_URL}/equipos/${equipoId}/actualizar/`, { method: "POST", body: formData });
+            if (res.ok) { alert("¡Actualizado con éxito!"); cargarDatosEquipo(); }
+        }
+
+        async function subirFoto() {
+            const fileInput = document.getElementById("inputFoto");
+            if (!fileInput.files[0]) return alert("Seleccione una foto.");
+            const fd = new FormData();
+            fd.append("foto", fileInput.files[0]);
+            const res = await fetch(`${API_URL}/equipos/${equipoId}/foto/`, { method: "POST", body: fd });
+            if (res.ok) { const data = await res.json(); document.getElementById("imgEquipo").src = `${API_URL}/${data.url}`; alert("¡Foto actualizada!"); }
+        }
+    </script>
+</body>
+</html>

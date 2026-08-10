@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>BioMant IA - Traslado de Equipo</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f6f9; padding: 20px; color: #333; margin: 0; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        h2 { color: #003366; border-bottom: 2px solid #003366; padding-bottom: 8px; margin-top: 0; }
+        form { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; background: #f8f9fa; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        input, select, textarea { padding: 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; }
+        button { padding: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 14px; border: none; background: #ffc107; color: black; }
+        button:hover { background: #e0a800; }
+        .info-equipo { background: #e2e8f0; padding: 10px; border-radius: 6px; font-weight: bold; color: #003366; margin-bottom: 15px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="margin-bottom: 15px;">
+            <a id="linkVolver" href="index.html" style="color: #003366; text-decoration: none; font-weight: bold;">← Volver al Inventario</a>
+        </div>
+
+        <h2>Registro de Traslado de Equipo</h2>
+        <div id="infoEquipo" class="info-equipo">Cargando información del equipo...</div>
+
+        <form id="formTraslado" onsubmit="event.preventDefault(); registrarTraslado();">
+            <div class="form-group">
+                <label>Sede de Destino:</label>
+                <select id="sede_destino_id" required>
+                    <option value="">Seleccione una sede...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Nueva Ubicación Interna (Ej: Quirófano 2, UCI):</label>
+                <input type="text" id="ubicacion_destino" required placeholder="Escriba la nueva ubicación">
+            </div>
+
+            <div class="form-group">
+                <label>Motivo del Traslado:</label>
+                <textarea id="motivo" rows="3" required placeholder="Describa el motivo del cambio de ubicación..."></textarea>
+            </div>
+
+            <button type="submit">Ejecutar y Guardar Traslado</button>
+        </form>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        const urlParams = new URLSearchParams(window.location.search);
+        const equipoId = urlParams.get('equipo_id');
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            if (!equipoId) {
+                alert("No se especificó un equipo.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            document.getElementById("linkVolver").href = `hoja_vida.html?equipo_id=${equipoId}`;
+            const sesion = sessionStorage.getItem("usuarioLogueado") || localStorage.getItem("usuarioLogueado");
+            if (!sesion) {
+                alert("Debe iniciar sesión.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            const usuario = JSON.parse(sesion);
+
+            try {
+                // 1. Cargar datos del equipo
+                const resEq = await fetch(`${API_URL}/equipos/${equipoId}`);
+                if (resEq.ok) {
+                    const eq = await resEq.json();
+                    document.getElementById("infoEquipo").innerText = `Equipo: ${eq.nombre_equipo} | Serie: ${eq.serie} | Ubicación Actual: ${eq.ubicacion_interna}`;
+                }
+
+                // 2. Cargar sedes de la empresa para el selector
+                const resSedes = await fetch(`${API_URL}/sedes/?empresa_id=${usuario.empresa_id}`);
+                if (resSedes.ok) {
+                    const sedes = await resSedes.json();
+                    const selectSede = document.getElementById("sede_destino_id");
+                    sedes.forEach(s => {
+                        selectSede.innerHTML += `<option value="${s.id}">${s.nombre_sede} (${s.ciudad})</option>`;
+                    });
+                }
+            } catch (e) {
+                console.error("Error al cargar datos iniciales", e);
+            }
+        });
+
+        async function registrarTraslado() {
+            const sesion = sessionStorage.getItem("usuarioLogueado") || localStorage.getItem("usuarioLogueado");
+            const usuario = JSON.parse(sesion);
+
+            const fd = new FormData();
+            fd.append("equipo_id", equipoId);
+            fd.append("usuario_id", usuario.id);
+            fd.append("sede_destino_id", document.getElementById("sede_destino_id").value);
+            fd.append("ubicacion_destino", document.getElementById("ubicacion_destino").value);
+            fd.append("motivo", document.getElementById("motivo").value);
+
+            try {
+                const res = await fetch(`${API_URL}/traslados/`, { method: "POST", body: fd });
+                if (res.ok) {
+                    alert("¡Traslado registrado y equipo actualizado con éxito!");
+                    window.location.href = `hoja_vida.html?equipo_id=${equipoId}`;
+                } else {
+                    const err = await res.json();
+                    alert("Error al registrar el traslado: " + (err.detail || "Verifique los datos"));
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor backend.");
+            }
+        }
+    </script>
+</body>
+</html>
