@@ -61,16 +61,16 @@ class UsuarioResponse(UsuarioBase):
 # --- 4. ESQUEMAS DE EQUIPO ---
 class EquipoBase(BaseModel):
     nombre_equipo: str
-    marca: str
-    modelo: str
-    serie: str
+    marca: Optional[str] = "Desconocida"
+    modelo: Optional[str] = "Desconocido"
+    serie: Optional[str] = "S/N"
     calibracion: bool = False
-    activo_fijo: str
-    ubicacion_interna: str
+    activo_fijo: Optional[str] = "Por definir"
+    ubicacion_interna: Optional[str] = "General"
     
     registro_sanitario: Optional[str] = None
-    riesgo: str  # I, IIa, IIb, III
-    adquisicion: str  # Propio / Alquilado
+    riesgo: Optional[str] = "I"  # I, IIa, IIb, III
+    adquisicion: Optional[str] = "Propio"  # Propio / Alquilado / Devuelto
     costo_canon: float = 0.0
     proveedor: Optional[str] = None
     tipo_alquiler: Optional[str] = None
@@ -149,9 +149,3 @@ class TrasladoResponse(TrasladoBase):
 class LoginRequest(BaseModel):
     email: str
     password: str
-
-class EmpresaCreate(BaseModel):
-    nombre_empresa: str
-    nit: Optional[str] = None
-    direccion: Optional[str] = None
-    telefono: Optional[str] = None

@@ -81,7 +81,12 @@ def listar_empresas(db: Session = Depends(get_db)):
 
 @app.post("/empresas/", tags=["Empresas"])
 def crear_empresa(datos: schemas.EmpresaCreate, db: Session = Depends(get_db)):
-    nueva_empresa = models.Empresa(nombre=datos.nombre_empresa, nit=datos.nit, activo=True)
+    nueva_empresa = models.Empresa(
+        nombre=datos.nombre_empresa, 
+        nit=datos.nit, 
+        logo_url=datos.logo_url,
+        activo=True
+    )
     db.add(nueva_empresa)
     db.commit()
     db.refresh(nueva_empresa)
@@ -110,7 +115,8 @@ def crear_sede(datos: schemas.SedeCreate, db: Session = Depends(get_db)):
         nombre_sede=datos.nombre_sede,
         empresa_id=datos.empresa_id,
         direccion=datos.direccion or "Sin dirección",
-        ciudad=datos.ciudad or "Bogotá"
+        ciudad=datos.ciudad or "Bogotá",
+        telefono=datos.telefono or "N/A"
     )
     db.add(nueva_sede)
     db.commit()
@@ -132,7 +138,15 @@ def crear_equipo(datos: schemas.EquipoCreate, db: Session = Depends(get_db)):
     nuevo_equipo = models.Equipo(**datos.dict())
     db.add(nuevo_equipo)
     db.commit()
-    return {"mensaje": "Equipo creado"}
+    db.refresh(nuevo_equipo)
+    return {"mensaje": "Equipo creado con éxito", "id": nuevo_equipo.id}
+
+@app.get("/equipos/{equipo_id}", tags=["Inventario"])
+def obtener_equipo(equipo_id: int, db: Session = Depends(get_db)):
+    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    return equipo
 
 # --- GESTIÓN DE USUARIOS ---
 @app.get("/usuarios/", tags=["Usuarios"])
