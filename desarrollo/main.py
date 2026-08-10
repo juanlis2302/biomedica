@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import shutil, os
@@ -11,33 +12,11 @@ import bcrypt
 import models
 import schemas
 from database import engine, get_db
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-import os
 
-app = FastAPI()
-
-# 1. Definir la ruta absoluta o relativa hacia tu carpeta frontend
-# (Asumiendo que main.py está en 'desarrollo' y 'frontend' está al mismo nivel en la raíz)
-frontend_path = os.path.join(os.path.dirname(__file__), "../frontend")
-
-# 2. Montar los archivos estáticos (HTML, CSS, JS)
-app.mount("/static", StaticFiles(directory=frontend_path), name="static")
-
-# 3. Ruta principal para que al entrar a la URL cargue tu index.html
-@app.get("/")
-def leer_index():
-    return FileResponse(os.path.join(frontend_path, "index.html"))
-# --- SEGURIDAD CONTRASEÑAS ---
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
-
-def verificar_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode('utf-8')[:72], hashed_password.encode('utf-8'))
-
+# Inicializar FastAPI una sola vez con título y versión
 app = FastAPI(title="BioMant IA API", version="1.0.0")
 
+# --- CONFIGURACIÓN CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,8 +25,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- ARCHIVOS ESTÁTICOS Y FRONTEND ---
 os.makedirs("documentos", exist_ok=True)
 app.mount("/documentos", StaticFiles(directory="documentos"), name="documentos")
+
+# Ruta absoluta hacia la carpeta frontend (asumiendo que main.py está en 'desarrollo')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+frontend_path = os.path.join(os.path.dirname(BASE_DIR), "frontend")
+
+# Montar los estáticos del frontend si la carpeta existe
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
+# Ruta principal para cargar el index.html del frontend
+@app.get("/")
+def leer_index():
+    archivo_index = os.path.join(frontend_path, "index.html")
+    if os.path.exists(archivo_index):
+        return FileResponse(archivo_index)
+    return {"error": "index.html no encontrado", "ruta": archivo_index}
+
+# --- SEGURIDAD CONTRASEÑAS ---
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8')[:72], bcrypt.gensalt()).decode('utf-8')
+
+def verificar_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8')[:72], hashed_password.encode('utf-8'))
 
 # --- LOGIN ---
 @app.post("/login", tags=["Usuarios"])
@@ -140,7 +143,7 @@ async def actualizar_equipo(
     riesgo: Optional[str] = Form(None),
     proveedor: Optional[str] = Form(None),
     costo: Optional[str] = Form(None),
-    adquisicion: Optional[str] = Form(None),         
+    adquisicion: Optional[str] = Form(None),            
     tipo_alquiler: Optional[str] = Form(None),       
     periodicidad_mtto: Optional[str] = Form(None),   
     proximo_mtto: Optional[str] = Form(None),
