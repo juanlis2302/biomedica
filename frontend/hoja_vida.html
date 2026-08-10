@@ -52,10 +52,10 @@
 
         <form id="formHojaVida" onsubmit="event.preventDefault(); actualizarEquipo();">
             <div class="grid-formulario">
-                <div class="form-group"><label>Nombre del Equipo:</label><input type="text" id="nombre_equipo" required></div>
+                <div class="form-group"><label>Nombre del Equipo (Bloqueado):</label><input type="text" id="nombre_equipo" readonly style="background:#e9ecef; cursor:not-allowed;"></div>
                 <div class="form-group"><label>Marca:</label><input type="text" id="marca"></div>
                 <div class="form-group"><label>Modelo:</label><input type="text" id="modelo"></div>
-                <div class="form-group"><label>Serie:</label><input type="text" id="serie"></div>
+                <div class="form-group"><label>Serie (Bloqueado):</label><input type="text" id="serie" readonly style="background:#e9ecef; cursor:not-allowed;"></div>
                 <div class="form-group"><label>Activo Fijo:</label><input type="text" id="activo_fijo"></div>
                 <div class="form-group"><label>Ubicación Interna:</label><input type="text" id="ubicacion_interna"></div>
                 <div class="form-group"><label>Código de Prestador (Sede):</label><input type="text" id="codigo_prestador" readonly style="background:#e9ecef;"></div>
@@ -320,10 +320,25 @@
         async function actualizarEquipo() {
             const formData = new FormData();
             ["nombre_equipo", "marca", "modelo", "serie", "activo_fijo", "ubicacion_interna", "invima", "riesgo", "proveedor", "costo", "adquisicion", "tipo_alquiler", "periodicidad_mtto", "proximo_mtto", "fecha_inicio_alquiler", "fecha_fin_alquiler"].forEach(id => {
-                formData.append(id, document.getElementById(id).value);
+                const el = document.getElementById(id);
+                formData.append(id, el ? el.value : "");
             });
-            const res = await fetch(`${API_URL}/equipos/${equipoId}/actualizar/`, { method: "POST", body: formData });
-            if (res.ok) { alert("¡Actualizado con éxito!"); cargarDatosEquipo(); }
+
+            try {
+                const res = await fetch(`${API_URL}/equipos/${equipoId}/actualizar/`, { 
+                    method: "POST", 
+                    body: formData 
+                });
+                if (res.ok) { 
+                    alert("¡Hoja de vida actualizada con éxito!"); 
+                    cargarDatosEquipo(); 
+                } else {
+                    const err = await res.json();
+                    alert("Error al actualizar: " + (err.detail || "Verifica los datos"));
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor.");
+            }
         }
 
         async function subirFoto() {

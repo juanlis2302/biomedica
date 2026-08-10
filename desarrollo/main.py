@@ -210,6 +210,53 @@ def obtener_equipo(equipo_id: int, db: Session = Depends(get_db)):
     resultado["codigo_prestador"] = sede.codigo_prestador if sede else "N/A"
     return resultado
 
+@app.post("/equipos/{equipo_id}/actualizar/", tags=["Inventario"])
+def actualizar_equipo(
+    equipo_id: int,
+    nombre_equipo: str = Form(...),
+    marca: Optional[str] = Form(None),
+    modelo: Optional[str] = Form(None),
+    serie: Optional[str] = Form(None),
+    activo_fijo: Optional[str] = Form(None),
+    ubicacion_interna: Optional[str] = Form(None),
+    invima: Optional[str] = Form(None),
+    riesgo: Optional[str] = Form(None),
+    proveedor: Optional[str] = Form(None),
+    costo: float = Form(0.0),
+    adquisicion: Optional[str] = Form(None),
+    tipo_alquiler: Optional[str] = Form(None),
+    periodicidad_mtto: Optional[str] = Form(None),
+    proximo_mtto: Optional[str] = Form(None),
+    fecha_inicio_alquiler: Optional[str] = Form(None),
+    fecha_fin_alquiler: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    equipo = db.query(models.Equipo).filter(models.Equipo.id == equipo_id).first()
+    if not equipo:
+        raise HTTPException(status_code=404, detail="Equipo no encontrado")
+    
+    equipo.marca = marca
+    equipo.modelo = modelo
+    equipo.activo_fijo = activo_fijo
+    equipo.ubicacion_interna = ubicacion_interna
+    equipo.registro_sanitario = invima
+    equipo.riesgo = riesgo
+    equipo.proveedor = proveedor
+    equipo.costo_canon = costo
+    equipo.adquisicion = adquisicion
+    equipo.tipo_alquiler = tipo_alquiler
+    equipo.periodicidad_mtto = periodicidad_mtto
+    
+    if proximo_mtto and proximo_mtto.strip():
+        equipo.proximo_mtto = datetime.strptime(proximo_mtto, "%Y-%m-%d").date()
+    if fecha_inicio_alquiler and fecha_inicio_alquiler.strip():
+        equipo.fecha_inicio_alquiler = datetime.strptime(fecha_inicio_alquiler, "%Y-%m-%d").date()
+    if fecha_fin_alquiler and fecha_fin_alquiler.strip():
+        equipo.fecha_fin_alquiler = datetime.strptime(fecha_fin_alquiler, "%Y-%m-%d").date()
+
+    db.commit()
+    return {"mensaje": "Equipo actualizado correctamente"}
+
 @app.post("/mantenimientos/", tags=["Mantenimientos"])
 def crear_mantenimiento(
     equipo_id: int = Form(...),
@@ -323,11 +370,15 @@ def obtener_metricas_dashboard(empresa_id: Optional[int] = None, db: Session = D
         query = query.join(models.Sede).filter(models.Sede.empresa_id == empresa_id)
     equipos = query.all()
     
+    costo_compra = sum(e.costo_canon or 0 for e in equipos if e.adquisicion == "Propio")
+    costo_alquiler_mensual = sum(e.costo_canon or 0 for e in equipos if e.adquisicion == "Alquilado" and e.tipo_alquiler == "Mensual")
+    costo_alquiler_diario = sum(e.costo_canon or 0 for e in equipos if e.adquisicion == "Alquilado" and e.tipo_alquiler == "Por Días")
+    
     return {
         "total_equipos": len(equipos),
-        "costo_total_compra": sum(e.costo_canon or 0 for e in equipos if e.adquisicion == "Propio"),
-        "costo_total_alquiler": sum(e.costo_canon or 0 for e in equipos if e.adquisicion == "Alquilado"),
-        "desglose_alquiler_proveedor": {},
+        "costo_total_compra": costo_compra,
+        "costo_alquiler_mensual": costo_alquiler_mensual,
+        "costo_alquiler_diario": costo_alquiler_diario,
         "mantenimientos_mes": 0
     }
 
