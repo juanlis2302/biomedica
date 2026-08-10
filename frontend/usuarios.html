@@ -61,7 +61,7 @@
         let usuarioActual = null;
 
         window.addEventListener("DOMContentLoaded", async () => {
-            const sesion = localStorage.getItem("usuarioLogueado");
+            const sesion = sessionStorage.getItem("usuarioLogueado"); // ✅ Ahora lee correctamente la sesión activa
             if (!sesion) { window.location.href = "/static/index.html"; return; }
             usuarioActual = JSON.parse(sesion);
             if (usuarioActual.rol === "tecnico") { window.location.href = "/static/index.html"; return; }
